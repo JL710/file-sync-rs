@@ -36,7 +36,10 @@ impl Application for App {
     fn new(flags: Flags) -> (Self, Command<Self::Message>) {
         (
             App {
-                lang: lang::Lang::English,
+                lang: match flags.db.get_setting("Lang").unwrap() {
+                    Some(lang_str) => lang::Lang::from(lang_str.as_str()),
+                    _ => lang::Lang::English,
+                },
                 db: flags.db,
                 currently_syncing: false,
             },
@@ -100,10 +103,16 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Self::Message> {
         match message {
-            Message::SwitchLanguage => match self.lang {
-                lang::Lang::English => self.lang = lang::Lang::German,
-                lang::Lang::German => self.lang = lang::Lang::English,
-            },
+            Message::SwitchLanguage => {
+                let new_lang = match self.lang {
+                    lang::Lang::English => lang::Lang::German,
+                    lang::Lang::German => lang::Lang::English,
+                };
+                self.db
+                    .set_setting("Lang", String::from(&new_lang).as_str())
+                    .unwrap();
+                self.lang = new_lang;
+            }
             Message::AddFile => {
                 self.add_files();
             }

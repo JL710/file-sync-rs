@@ -5,6 +5,25 @@ pub enum Lang {
     English,
 }
 
+impl From<&str> for Lang {
+    fn from(value: &str) -> Self {
+        match value {
+            "German" => Self::German,
+            _ => Self::English,
+        }
+    }
+}
+
+impl From<&Lang> for String {
+    fn from(value: &Lang) -> Self {
+        match value {
+            Lang::German => "German",
+            _ => "English",
+        }
+        .to_owned()
+    }
+}
+
 pub fn start_sync(lang: &Lang) -> &'static str {
     match lang {
         Lang::German => "Synchronisierung Starten",
