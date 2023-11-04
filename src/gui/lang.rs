@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+#[derive(Debug)]
 pub enum Lang {
     German,
     English,
@@ -72,4 +73,20 @@ pub fn sources_overlap_error(lang: &Lang, path1: &Path, path2: &Path) -> String 
             path2.to_str().unwrap()
         ),
     }
+}
+
+pub fn target_does_not_exist_error(lang: &Lang) -> String {
+    match lang {
+        Lang::German => "Es ist kein Zielverzeichnis eingestellt.",
+        _ => "No target directory is given.",
+    }
+    .to_owned()
+}
+
+pub fn sources_does_not_exist_error(lang: &Lang) -> String {
+    match lang {
+        Lang::German => "Es sind keine Verzeichnisse zum synchronisieren eingestellt.",
+        _ => "No source directories given.",
+    }
+    .to_owned()
 }
