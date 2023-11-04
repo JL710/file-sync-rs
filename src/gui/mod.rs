@@ -1,8 +1,10 @@
-use crate::db;
 use iced::settings::Settings;
 use iced::widget::{self, button, column, row, scrollable, text, Column};
 use iced::{executor, Application, Command, Element, Length, Theme};
 use std::path::PathBuf;
+
+use crate::db;
+use crate::sync;
 
 mod lang;
 mod style;
@@ -14,7 +16,8 @@ struct Flags {
 struct App {
     lang: lang::Lang,
     db: db::AppSettings,
-    currently_syncing: bool,
+    syncer: Option<sync::Syncer>,
+    syncer_state: Option<sync::State>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +28,8 @@ enum Message {
     DeleteSource(PathBuf),
     ChangeTarget,
     StartSync,
+    FinishedSync,
+    SyncUpdate(sync::State),
 }
 
 impl Application for App {
@@ -41,7 +46,8 @@ impl Application for App {
                     _ => lang::Lang::English,
                 },
                 db: flags.db,
-                currently_syncing: false,
+                syncer: None,
+                syncer_state: None,
             },
             Command::none(),
         )
@@ -52,19 +58,19 @@ impl Application for App {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        column![
+        let mut root_col = column![
             row![button("Language").on_press(Message::SwitchLanguage)].height(Length::Shrink),
             row![
                 column![
                     button(lang::add_file(&self.lang)).on_press_maybe({
-                        if self.currently_syncing {
+                        if self.is_currently_syncing() {
                             None
                         } else {
                             Some(Message::AddFile)
                         }
                     }),
                     button(lang::add_directory(&self.lang)).on_press_maybe({
-                        if self.currently_syncing {
+                        if self.is_currently_syncing() {
                             None
                         } else {
                             Some(Message::AddDirectory)
@@ -79,7 +85,7 @@ impl Application for App {
                 .height(Length::Fill)
                 .width(Length::FillPortion(1)),
                 widget::Container::new(button(lang::start_sync(&self.lang)).on_press_maybe({
-                    if self.currently_syncing {
+                    if self.is_currently_syncing() {
                         None
                     } else {
                         Some(Message::StartSync)
@@ -96,9 +102,19 @@ impl Application for App {
                     .center_x()
             ]
             .height(Length::FillPortion(20)),
-            widget::progress_bar(0.0..=100.0, 30.0).height(Length::Fixed(10.0)) //.height(Length::FillPortion(1)),
-        ]
-        .into()
+        ];
+
+        if let Some(state) = &self.syncer_state {
+            root_col = root_col.push(
+                widget::progress_bar(0.0..=state.total_todo() as f32, state.done() as f32)
+                    .height(Length::Fixed(10.0)),
+            );
+        } else if self.syncer.is_some() {
+            root_col = root_col
+                .push(widget::progress_bar(0_f32..=1_f32, 0_f32).height(Length::Fixed(10.0)))
+        }
+
+        root_col.into()
     }
 
     fn update(&mut self, message: Message) -> Command<Self::Message> {
@@ -126,14 +142,88 @@ impl Application for App {
                 self.change_target();
             }
             Message::StartSync => {
-                self.currently_syncing = !self.currently_syncing;
+                // check if target is set
+                let target = match self.db.get_setting("target_path").unwrap() {
+                    None => {
+                        rfd::MessageDialog::new()
+                            .set_buttons(rfd::MessageButtons::Ok)
+                            .set_title("Error")
+                            .set_description(lang::target_does_not_exist_error(&self.lang))
+                            .show();
+                        return Command::none();
+                    }
+                    Some(target_string) => PathBuf::from(target_string),
+                };
+
+                // check if sources are available
+                let sources = self.db.get_sources().unwrap();
+                if sources.is_empty() {
+                    rfd::MessageDialog::new()
+                        .set_buttons(rfd::MessageButtons::Ok)
+                        .set_title("Error")
+                        .set_description(lang::sources_does_not_exist_error(&self.lang))
+                        .show();
+                    return Command::none();
+                }
+
+                // check if a syncer is already running
+                if self.syncer.is_none() {
+                    // create and set syncer
+                    self.syncer = Some(sync::Syncer::new(sources, target))
+                }
             }
+            Message::FinishedSync => {
+                self.syncer = None;
+                self.syncer_state = None;
+            }
+            Message::SyncUpdate(state) => self.syncer_state = Some(state),
         }
         Command::none()
+    }
+
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        if self.syncer.is_some() {
+            struct Worker;
+            let syncer = self.syncer.clone().unwrap();
+            iced::subscription::channel(
+                std::any::TypeId::of::<Worker>(),
+                100,
+                |mut output| async move {
+                    use iced::futures::sink::SinkExt;
+
+                    tokio::task::spawn_blocking(move || {
+                        let runtime = tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap();
+                        for state in syncer {
+                            runtime
+                                .block_on(output.send(Message::SyncUpdate(state)))
+                                .unwrap();
+                        }
+                        runtime
+                            .block_on(output.send(Message::FinishedSync))
+                            .unwrap();
+                    })
+                    .await
+                    .unwrap();
+
+                    loop {
+                        tokio::task::yield_now().await;
+                    }
+                },
+            )
+        } else {
+            iced::Subscription::none()
+        }
     }
 }
 
 impl App {
+    fn is_currently_syncing(&self) -> bool {
+        self.syncer.is_some()
+    }
+
     fn add_files(&self) {
         if let Some(paths) = rfd::FileDialog::new().pick_files() {
             self.add_source(paths);
@@ -149,6 +239,7 @@ impl App {
     fn add_source(&self, paths: Vec<PathBuf>) {
         let existing_paths = self.db.get_sources().unwrap();
         'path_loop: for path in paths {
+            // check if exact path already exists
             if existing_paths.contains(&path) {
                 rfd::MessageDialog::new()
                     .set_level(rfd::MessageLevel::Error)
@@ -158,6 +249,7 @@ impl App {
                     .show();
                 continue;
             }
+            // check if paths overlap
             for existing_path in &existing_paths {
                 if existing_path.starts_with(&path) || path.starts_with(existing_path) {
                     rfd::MessageDialog::new()
@@ -173,6 +265,7 @@ impl App {
                     continue 'path_loop;
                 }
             }
+            // add source
             self.db.add_source(path).unwrap();
         }
     }
@@ -206,7 +299,7 @@ impl App {
                         .style(style::SvgStyleSheet::new(255, 255, 255).into())
                     )
                     .on_press_maybe({
-                        if self.currently_syncing {
+                        if self.is_currently_syncing() {
                             None
                         } else {
                             Some(Message::DeleteSource(path))
@@ -236,7 +329,7 @@ impl App {
         col = col.push(
             button(lang::set_target(&self.lang))
                 .on_press_maybe({
-                    if self.currently_syncing {
+                    if self.is_currently_syncing() {
                         None
                     } else {
                         Some(Message::ChangeTarget)
