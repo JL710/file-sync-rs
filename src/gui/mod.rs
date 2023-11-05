@@ -146,35 +146,7 @@ impl Application for App {
                 self.change_target();
             }
             Message::StartSync => {
-                // check if target is set
-                let target = match self.db.get_setting("target_path").unwrap() {
-                    None => {
-                        rfd::MessageDialog::new()
-                            .set_buttons(rfd::MessageButtons::Ok)
-                            .set_title("Error")
-                            .set_description(lang::target_does_not_exist_error(&self.lang))
-                            .show();
-                        return Command::none();
-                    }
-                    Some(target_string) => PathBuf::from(target_string),
-                };
-
-                // check if sources are available
-                let sources = self.db.get_sources().unwrap();
-                if sources.is_empty() {
-                    rfd::MessageDialog::new()
-                        .set_buttons(rfd::MessageButtons::Ok)
-                        .set_title("Error")
-                        .set_description(lang::sources_does_not_exist_error(&self.lang))
-                        .show();
-                    return Command::none();
-                }
-
-                // check if a syncer is already running
-                if self.syncer.is_none() {
-                    // create and set syncer
-                    self.syncer = Some(sync::Syncer::new(sources, target))
-                }
+                self.start_sync();
             }
             Message::FinishedSync => {
                 self.syncer = None;
@@ -354,6 +326,38 @@ impl App {
         }
 
         col.into()
+    }
+
+    fn start_sync(&mut self) {
+        // check if target is set
+        let target = match self.db.get_setting("target_path").unwrap() {
+            None => {
+                rfd::MessageDialog::new()
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .set_title("Error")
+                    .set_description(lang::target_does_not_exist_error(&self.lang))
+                    .show();
+                return;
+            }
+            Some(target_string) => PathBuf::from(target_string),
+        };
+
+        // check if sources are available
+        let sources = self.db.get_sources().unwrap();
+        if sources.is_empty() {
+            rfd::MessageDialog::new()
+                .set_buttons(rfd::MessageButtons::Ok)
+                .set_title("Error")
+                .set_description(lang::sources_does_not_exist_error(&self.lang))
+                .show();
+            return;
+        }
+
+        // check if a syncer is already running
+        if self.syncer.is_none() {
+            // create and set syncer
+            self.syncer = Some(sync::Syncer::new(sources, target))
+        }
     }
 }
 
