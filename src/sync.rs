@@ -27,12 +27,16 @@ pub struct Syncer {
     /// sources that are not done
     sources_todo: Vec<PathBuf>,
     /// sources that are done
-    sources_done: Vec<PathBuf>
+    sources_done: Vec<PathBuf>,
 }
 
 impl Syncer {
     pub fn new(sources: Vec<PathBuf>, target: PathBuf) -> Self {
-        Self { target, sources_todo: sources, sources_done: Vec::new() }
+        Self {
+            target,
+            sources_todo: sources,
+            sources_done: Vec::new(),
+        }
     }
 
     pub fn total(&self) -> usize {
@@ -48,7 +52,7 @@ impl Iterator for Syncer {
             Some(s) => s,
             _ => return None,
         };
-        
+
         self.sources_done.push(source.clone());
 
         println!("Source: {}", source.to_str().unwrap());
