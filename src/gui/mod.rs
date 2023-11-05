@@ -104,14 +104,9 @@ impl Application for App {
             .height(Length::FillPortion(20)),
         ];
 
-        if let Some(state) = &self.syncer_state {
-            root_col = root_col.push(
-                widget::progress_bar(0.0..=state.total_todo() as f32, state.done() as f32)
-                    .height(Length::Fixed(10.0)),
-            );
-        } else if self.syncer.is_some() {
+        if let Some(syncer) = &self.syncer {
             root_col = root_col
-                .push(widget::progress_bar(0_f32..=1_f32, 0_f32).height(Length::Fixed(10.0)))
+                .push(widget::progress_bar(0_f32..=syncer.total() as f32, if let Some(state) = &self.syncer_state {state.done()+1} else {1}  as f32).height(Length::Fixed(10.0)))
         }
 
         root_col.into()
