@@ -90,3 +90,36 @@ pub fn sources_does_not_exist_error(lang: &Lang) -> String {
     }
     .to_owned()
 }
+
+pub fn source_does_not_exist_error(lang: &Lang, source: &PathBuf) -> String {
+    match lang {
+        Lang::German => format!("Die Quelle {} existiert nicht.", source.to_str().unwrap()),
+        _ => format!("Source {} does not exist.", source.to_str().unwrap()),
+    }
+}
+
+pub fn source_in_target_error(lang: &Lang, source: &PathBuf) -> String {
+    match lang {
+        Lang::German => format!(
+            "Die Quelle {} befindet sich im Zielverzeichnis",
+            source.to_str().unwrap()
+        ),
+        _ => format!(
+            "The source {} is located inside the target directory",
+            source.to_str().unwrap()
+        ),
+    }
+}
+
+pub fn target_in_source_error(lang: &Lang, source: &PathBuf) -> String {
+    match lang {
+        Lang::German => format!(
+            "Das Zielverzeichnis befindet sich in diesem Quellverzeichnis: {} .",
+            source.to_str().unwrap()
+        ),
+        _ => format!(
+            "The target directory located inside in this source directory: {} .",
+            source.to_str().unwrap()
+        ),
+    }
+}

@@ -31,12 +31,13 @@ pub struct Syncer {
 }
 
 impl Syncer {
-    pub fn new(sources: Vec<PathBuf>, target: PathBuf) -> Self {
-        Self {
+    pub fn new(sources: Vec<PathBuf>, target: PathBuf) -> Result<Self, InvalidSyncerParameters> {
+        valid_syncer_parameters(&sources, &target)?;
+        Ok(Self {
             target,
             sources_todo: sources,
             sources_done: Vec::new(),
-        }
+        })
     }
 
     pub fn total(&self) -> usize {
@@ -64,4 +65,30 @@ impl Iterator for Syncer {
             done: self.sources_done.len(),
         })
     }
+}
+
+fn valid_syncer_parameters(
+    sources: &Vec<PathBuf>,
+    target: &PathBuf,
+) -> Result<(), InvalidSyncerParameters> {
+    for source in sources {
+        if !source.is_dir() && !source.is_file() {
+            // check if source exists
+            return Err(InvalidSyncerParameters::SourceDoesNotExist(source.clone()));
+        } else if source.starts_with(target) {
+            // check if source is in target
+            return Err(InvalidSyncerParameters::SourceInTarget(source.clone()));
+        } else if target.starts_with(source) {
+            // check if target is in source
+            return Err(InvalidSyncerParameters::TargetInSource(source.clone()));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug)]
+pub enum InvalidSyncerParameters {
+    SourceDoesNotExist(PathBuf),
+    TargetInSource(PathBuf),
+    SourceInTarget(PathBuf),
 }

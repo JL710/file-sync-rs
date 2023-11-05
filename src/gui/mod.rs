@@ -356,7 +356,45 @@ impl App {
         // check if a syncer is already running
         if self.syncer.is_none() {
             // create and set syncer
-            self.syncer = Some(sync::Syncer::new(sources, target))
+            self.syncer = Some(match sync::Syncer::new(sources, target) {
+                Ok(syncer) => syncer,
+                Err(error) => {
+                    sync_invalid_parameters_popup(&self.lang, error);
+                    return;
+                }
+            })
+        }
+    }
+}
+
+fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerParameters) {
+    match error {
+        sync::InvalidSyncerParameters::SourceDoesNotExist(not_existing_source) => {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_buttons(rfd::MessageButtons::Ok)
+                .set_description(lang::source_does_not_exist_error(
+                    lang,
+                    &not_existing_source,
+                ))
+                .show();
+            return;
+        }
+        sync::InvalidSyncerParameters::SourceInTarget(source) => {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_buttons(rfd::MessageButtons::Ok)
+                .set_description(lang::source_in_target_error(lang, &source))
+                .show();
+            return;
+        }
+        sync::InvalidSyncerParameters::TargetInSource(source) => {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_buttons(rfd::MessageButtons::Ok)
+                .set_description(lang::target_in_source_error(lang, &source))
+                .show();
+            return;
         }
     }
 }
