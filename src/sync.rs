@@ -43,6 +43,29 @@ impl Syncer {
     pub fn total(&self) -> usize {
         self.sources_done.len() + self.sources_todo.len()
     }
+
+    fn resolve_dir(&mut self, dir: &PathBuf) {
+        for i in std::fs::read_dir(dir).unwrap() {
+            let entry = i.unwrap().path();
+            if entry.is_file() {
+                self.sources_todo.push(entry);
+            } else {
+                self.resolve_dir(&entry);
+            }
+        }
+    }
+
+    pub fn resolve(&mut self) {
+        let sources = self.sources_todo.clone();
+        self.sources_todo.clear();
+        for source in sources {
+            if source.is_file() {
+                self.sources_todo.push(source)
+            } else {
+                self.resolve_dir(&source);
+            }
+        }
+    }
 }
 
 impl Iterator for Syncer {
@@ -57,11 +80,21 @@ impl Iterator for Syncer {
         self.sources_done.push(source.clone());
 
         println!("Source: {}", source.to_str().unwrap());
+
+        if source.is_file() {
+            println!("{}", source.to_str().unwrap());
+            //todo!("File Coping")
+        } else if source.is_dir() {
+            todo!("do normal recursive stuff without adding to self.sources_todo")
+        } else {
+            todo!("Does not Exist Error")
+        }
+
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         Some(State {
             current_file: source.clone(),
-            total: self.sources_todo.len(),
+            total: self.sources_todo.len() + self.sources_done.len(),
             done: self.sources_done.len(),
         })
     }
