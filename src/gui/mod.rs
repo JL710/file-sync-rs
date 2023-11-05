@@ -107,11 +107,15 @@ impl Application for App {
         if let Some(syncer) = &self.syncer {
             root_col = root_col.push(
                 widget::progress_bar(
-                    0_f32..=syncer.total() as f32,
-                    if let Some(state) = &self.syncer_state {
-                        state.done() + 1
+                    0_f32..=if let Some(state) = &self.syncer_state {
+                        state.total()
                     } else {
                         1
+                    } as f32,
+                    if let Some(state) = &self.syncer_state {
+                        state.done()
+                    } else {
+                        0
                     } as f32,
                 )
                 .height(Length::Fixed(10.0)),
@@ -160,7 +164,7 @@ impl Application for App {
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         if self.syncer.is_some() {
             struct Worker;
-            let syncer = self.syncer.clone().unwrap();
+            let mut syncer = self.syncer.clone().unwrap();
             iced::subscription::channel(
                 std::any::TypeId::of::<Worker>(),
                 100,
@@ -172,6 +176,7 @@ impl Application for App {
                             .enable_all()
                             .build()
                             .unwrap();
+                        syncer.resolve();
                         for state in syncer {
                             runtime
                                 .block_on(output.send(Message::SyncUpdate(state)))
@@ -378,7 +383,6 @@ fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerPa
                     &not_existing_source,
                 ))
                 .show();
-            return;
         }
         sync::InvalidSyncerParameters::SourceInTarget(source) => {
             rfd::MessageDialog::new()
@@ -386,7 +390,6 @@ fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerPa
                 .set_buttons(rfd::MessageButtons::Ok)
                 .set_description(lang::source_in_target_error(lang, &source))
                 .show();
-            return;
         }
         sync::InvalidSyncerParameters::TargetInSource(source) => {
             rfd::MessageDialog::new()
@@ -394,7 +397,6 @@ fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerPa
                 .set_buttons(rfd::MessageButtons::Ok)
                 .set_description(lang::target_in_source_error(lang, &source))
                 .show();
-            return;
         }
     }
 }
