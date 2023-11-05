@@ -105,8 +105,17 @@ impl Application for App {
         ];
 
         if let Some(syncer) = &self.syncer {
-            root_col = root_col
-                .push(widget::progress_bar(0_f32..=syncer.total() as f32, if let Some(state) = &self.syncer_state {state.done()+1} else {1}  as f32).height(Length::Fixed(10.0)))
+            root_col = root_col.push(
+                widget::progress_bar(
+                    0_f32..=syncer.total() as f32,
+                    if let Some(state) = &self.syncer_state {
+                        state.done() + 1
+                    } else {
+                        1
+                    } as f32,
+                )
+                .height(Length::Fixed(10.0)),
+            )
         }
 
         root_col.into()
