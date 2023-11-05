@@ -104,7 +104,7 @@ impl Application for App {
             .height(Length::FillPortion(20)),
         ];
 
-        if let Some(syncer) = &self.syncer {
+        if self.syncer.is_some() {
             root_col = root_col.push(
                 widget::progress_bar(
                     0_f32..=if let Some(state) = &self.syncer_state {

@@ -91,14 +91,14 @@ pub fn sources_does_not_exist_error(lang: &Lang) -> String {
     .to_owned()
 }
 
-pub fn source_does_not_exist_error(lang: &Lang, source: &PathBuf) -> String {
+pub fn source_does_not_exist_error(lang: &Lang, source: &Path) -> String {
     match lang {
         Lang::German => format!("Die Quelle {} existiert nicht.", source.to_str().unwrap()),
         _ => format!("Source {} does not exist.", source.to_str().unwrap()),
     }
 }
 
-pub fn source_in_target_error(lang: &Lang, source: &PathBuf) -> String {
+pub fn source_in_target_error(lang: &Lang, source: &Path) -> String {
     match lang {
         Lang::German => format!(
             "Die Quelle {} befindet sich im Zielverzeichnis",
@@ -111,7 +111,7 @@ pub fn source_in_target_error(lang: &Lang, source: &PathBuf) -> String {
     }
 }
 
-pub fn target_in_source_error(lang: &Lang, source: &PathBuf) -> String {
+pub fn target_in_source_error(lang: &Lang, source: &Path) -> String {
     match lang {
         Lang::German => format!(
             "Das Zielverzeichnis befindet sich in diesem Quellverzeichnis: {} .",
