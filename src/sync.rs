@@ -22,47 +22,68 @@ impl State {
 }
 
 #[derive(Debug, Clone)]
-pub struct Syncer {
+struct Job {
+    source: PathBuf,
     target: PathBuf,
-    /// sources that are not done
-    sources_todo: Vec<PathBuf>,
-    /// sources that are done
-    sources_done: Vec<PathBuf>,
+}
+
+impl Job {
+    fn work(&self) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Syncer {
+    /// jobs that are not done
+    jobs_todo: Vec<Job>,
+    /// jobs  that are done
+    jobs_done: Vec<Job>,
 }
 
 impl Syncer {
     pub fn new(sources: Vec<PathBuf>, target: PathBuf) -> Result<Self, InvalidSyncerParameters> {
         valid_syncer_parameters(&sources, &target)?;
         Ok(Self {
-            target,
-            sources_todo: sources,
-            sources_done: Vec::new(),
+            jobs_todo: sources
+                .iter()
+                .map(|source| Job {
+                    source: source.clone(),
+                    target: target.join(source.file_name().unwrap()),
+                })
+                .collect(),
+            jobs_done: Vec::new(),
         })
     }
 
     pub fn total(&self) -> usize {
-        self.sources_done.len() + self.sources_todo.len()
+        self.jobs_done.len() + self.jobs_todo.len()
     }
 
-    fn resolve_dir(&mut self, dir: &PathBuf) {
-        for i in std::fs::read_dir(dir).unwrap() {
+    fn resolve_dir(&mut self, job: &Job) {
+        self.jobs_todo.push(job.clone());
+        for i in std::fs::read_dir(&job.source).unwrap() {
             let entry = i.unwrap().path();
-            if entry.is_file() {
-                self.sources_todo.push(entry);
+            let new_job = Job {
+                target: job.target.join(entry.file_name().unwrap()),
+                source: entry,
+            };
+            if new_job.source.is_file() {
+                self.jobs_todo.push(new_job);
             } else {
-                self.resolve_dir(&entry);
+                self.resolve_dir(&new_job);
             }
         }
     }
 
     pub fn resolve(&mut self) {
-        let sources = self.sources_todo.clone();
-        self.sources_todo.clear();
-        for source in sources {
-            if source.is_file() {
-                self.sources_todo.push(source)
+        let jobs = self.jobs_todo.clone();
+        self.jobs_todo.clear();
+        for job in jobs {
+            if job.source.is_file() {
+                self.jobs_todo.push(job)
             } else {
-                self.resolve_dir(&source);
+                self.resolve_dir(&job);
             }
         }
     }
@@ -72,30 +93,27 @@ impl Iterator for Syncer {
     type Item = State;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let source = match self.sources_todo.pop() {
+        let job = match self.jobs_todo.pop() {
             Some(s) => s,
             _ => return None,
         };
 
-        self.sources_done.push(source.clone());
+        self.jobs_done.push(job.clone());
 
-        println!("Source: {}", source.to_str().unwrap());
+        println!(
+            "Source: {}, Target: {}",
+            job.source.to_str().unwrap(),
+            job.target.to_str().unwrap()
+        );
 
-        if source.is_file() {
-            println!("{}", source.to_str().unwrap());
-            //todo!("File Coping")
-        } else if source.is_dir() {
-            todo!("do normal recursive stuff without adding to self.sources_todo")
-        } else {
-            todo!("Does not Exist Error")
-        }
+        job.work();
 
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         Some(State {
-            current_file: source.clone(),
-            total: self.sources_todo.len() + self.sources_done.len(),
-            done: self.sources_done.len(),
+            current_file: job.source.clone(),
+            total: self.jobs_todo.len() + self.jobs_done.len(),
+            done: self.jobs_done.len(),
         })
     }
 }
