@@ -29,7 +29,26 @@ struct Job {
 
 impl Job {
     fn work(&self) {
-        todo!()
+        if self.source.is_file() {
+            if !self.target.is_file() || !self.files_are_equal() {
+                std::fs::copy(&self.source, &self.target).unwrap();
+            }
+        } else if !self.target.is_dir() {
+            std::fs::create_dir(&self.target).unwrap();
+        }
+    }
+
+    fn files_are_equal(&self) -> bool {
+        let source_file = std::fs::read(&self.source).unwrap();
+        let target_file = std::fs::read(&self.target).unwrap();
+
+        for (source_byte, target_byte) in source_file.iter().zip(target_file.iter()) {
+            if source_byte != target_byte {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -54,10 +73,6 @@ impl Syncer {
                 .collect(),
             jobs_done: Vec::new(),
         })
-    }
-
-    pub fn total(&self) -> usize {
-        self.jobs_done.len() + self.jobs_todo.len()
     }
 
     fn resolve_dir(&mut self, job: &Job) {
@@ -86,6 +101,7 @@ impl Syncer {
                 self.resolve_dir(&job);
             }
         }
+        self.jobs_todo.reverse();
     }
 }
 
@@ -100,15 +116,7 @@ impl Iterator for Syncer {
 
         self.jobs_done.push(job.clone());
 
-        println!(
-            "Source: {}, Target: {}",
-            job.source.to_str().unwrap(),
-            job.target.to_str().unwrap()
-        );
-
         job.work();
-
-        std::thread::sleep(std::time::Duration::from_secs(1));
 
         Some(State {
             current_file: job.source.clone(),
