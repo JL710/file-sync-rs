@@ -274,8 +274,8 @@ impl App {
                     .width(Length::FillPortion(5)),
                     widget::Space::with_width(10),
                     button(
-                        widget::svg::Svg::new(widget::svg::Handle::from_path(
-                            "src/gui/assets/trash-fill.svg"
+                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                            std::borrow::Cow::from(&include_bytes!("./assets/trash-fill.svg")[..])
                         ))
                         .style(style::SvgStyleSheet::new(255, 255, 255).into())
                     )
