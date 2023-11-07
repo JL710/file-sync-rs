@@ -42,6 +42,10 @@ impl Job {
         let source_file = std::fs::read(&self.source).unwrap();
         let target_file = std::fs::read(&self.target).unwrap();
 
+        if source_file.len() != target_file.len() {
+            return false;
+        }
+
         for (source_byte, target_byte) in source_file.iter().zip(target_file.iter()) {
             if source_byte != target_byte {
                 return false;
