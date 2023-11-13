@@ -42,7 +42,7 @@ impl Job {
     }
 
     fn file_work(&self) {
-        const BUFF_SIZE: usize = 1024;
+        const BUFF_SIZE: usize = 4096;
 
         let mut source_file = std::fs::File::open(&self.source).unwrap();
         let mut target_file = std::fs::File::open(&self.target).unwrap();
