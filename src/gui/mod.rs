@@ -59,7 +59,13 @@ impl Application for App {
 
     fn view(&self) -> Element<'_, Message> {
         let mut root_col = column![
-            row![button("Language").on_press(Message::SwitchLanguage)].height(Length::Shrink),
+            row![
+                widget::Container::new(button("Language").on_press(Message::SwitchLanguage))
+                    .align_x(iced::alignment::Horizontal::Right)
+                    .width(iced::Length::Fill)
+                    .padding(iced::Padding::from(10))
+            ]
+            .height(Length::Shrink),
             row![
                 column![
                     button(lang::add_file(&self.lang)).on_press_maybe({
