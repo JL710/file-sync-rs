@@ -32,17 +32,10 @@ pub fn start_sync(lang: &Lang) -> &'static str {
     }
 }
 
-pub fn add_file(lang: &Lang) -> &'static str {
+pub fn source_block_label(lang: &Lang) -> &'static str {
     match lang {
-        Lang::German => "Datei Hinzufügen",
-        _ => "Add File",
-    }
-}
-
-pub fn add_directory(lang: &Lang) -> &'static str {
-    match lang {
-        Lang::German => "Ordner Hinzufügen",
-        _ => "Add Directory",
+        Lang::German => "Quellen",
+        _ => "Sources",
     }
 }
 

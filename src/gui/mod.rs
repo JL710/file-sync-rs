@@ -68,20 +68,40 @@ impl Application for App {
             .height(Length::Shrink),
             row![
                 column![
-                    button(lang::add_file(&self.lang)).on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::AddFile)
-                        }
-                    }),
-                    button(lang::add_directory(&self.lang)).on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::AddDirectory)
-                        }
-                    }),
+                    row![
+                        button(
+                            widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                                std::borrow::Cow::from(
+                                    &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
+                                )
+                            ))
+                            .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                        )
+                        .on_press_maybe({
+                            if self.is_currently_syncing() {
+                                None
+                            } else {
+                                Some(Message::AddFile)
+                            }
+                        }),
+                        text(lang::source_block_label(&self.lang)),
+                        button(
+                            widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                                std::borrow::Cow::from(
+                                    &include_bytes!("./assets/folder-plus.svg")[..]
+                                )
+                            ))
+                            .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                        )
+                        .on_press_maybe({
+                            if self.is_currently_syncing() {
+                                None
+                            } else {
+                                Some(Message::AddDirectory)
+                            }
+                        }),
+                    ]
+                    .spacing(10),
                     widget::Container::new(
                         scrollable(column![self.generate_source_list()]).width(Length::Fill)
                     )
@@ -89,7 +109,8 @@ impl Application for App {
                     .height(Length::Fill),
                 ]
                 .height(Length::Fill)
-                .width(Length::FillPortion(1)),
+                .width(Length::FillPortion(1))
+                .align_items(iced::Alignment::Center),
                 widget::Container::new(button(lang::start_sync(&self.lang)).on_press_maybe({
                     if self.is_currently_syncing() {
                         None
