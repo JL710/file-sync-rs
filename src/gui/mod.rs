@@ -67,50 +67,7 @@ impl Application for App {
             ]
             .height(Length::Shrink),
             row![
-                column![
-                    row![
-                        button(
-                            widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                                std::borrow::Cow::from(
-                                    &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
-                                )
-                            ))
-                            .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                        )
-                        .on_press_maybe({
-                            if self.is_currently_syncing() {
-                                None
-                            } else {
-                                Some(Message::AddFile)
-                            }
-                        }),
-                        text(lang::source_block_label(&self.lang)),
-                        button(
-                            widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                                std::borrow::Cow::from(
-                                    &include_bytes!("./assets/folder-plus.svg")[..]
-                                )
-                            ))
-                            .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                        )
-                        .on_press_maybe({
-                            if self.is_currently_syncing() {
-                                None
-                            } else {
-                                Some(Message::AddDirectory)
-                            }
-                        }),
-                    ]
-                    .spacing(10),
-                    widget::Container::new(
-                        scrollable(column![self.generate_source_list()]).width(Length::Fill)
-                    )
-                    .center_y()
-                    .height(Length::Fill),
-                ]
-                .height(Length::Fill)
-                .width(Length::FillPortion(1))
-                .align_items(iced::Alignment::Center),
+                self.generate_source_view(),
                 widget::Container::new(button(lang::start_sync(&self.lang)).on_press_maybe({
                     if self.is_currently_syncing() {
                         None
@@ -358,6 +315,52 @@ impl App {
         }
 
         col.into()
+    }
+
+    fn generate_source_view(&self) -> Element<'_, Message> {
+        column![
+            row![
+                button(
+                    widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                        std::borrow::Cow::from(
+                            &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
+                        )
+                    ))
+                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                )
+                .on_press_maybe({
+                    if self.is_currently_syncing() {
+                        None
+                    } else {
+                        Some(Message::AddFile)
+                    }
+                }),
+                text(lang::source_block_label(&self.lang)),
+                button(
+                    widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                        std::borrow::Cow::from(&include_bytes!("./assets/folder-plus.svg")[..])
+                    ))
+                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                )
+                .on_press_maybe({
+                    if self.is_currently_syncing() {
+                        None
+                    } else {
+                        Some(Message::AddDirectory)
+                    }
+                }),
+            ]
+            .spacing(10),
+            widget::Container::new(
+                scrollable(column![self.generate_source_list()]).width(Length::Fill)
+            )
+            .center_y()
+            .height(Length::Fill),
+        ]
+        .height(Length::Fill)
+        .width(Length::FillPortion(1))
+        .align_items(iced::Alignment::Center)
+        .into()
     }
 
     fn start_sync(&mut self) {
