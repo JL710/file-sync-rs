@@ -1,4 +1,5 @@
 use iced::theme;
+use iced::widget;
 use iced::widget::button;
 use iced::widget::svg;
 
@@ -36,21 +37,20 @@ impl ButtonStyleSheet {
         }
     }
 
-    pub fn set_border_radius(&mut self, radius: iced::BorderRadius) -> Self {
+    pub fn set_border_radius(mut self, radius: iced::BorderRadius) -> Self {
         self.active.border_radius = radius;
         self.hovered.border_radius = radius;
         self.pressed.border_radius = radius;
         self.disabled.border_radius = radius;
-        *self
+        self
     }
 
-    pub fn set_background(&mut self, color_heavy: iced::Color, color_light: iced::Color) -> Self {
+    pub fn set_background(mut self, color_heavy: iced::Color, color_light: iced::Color) -> Self {
         self.active.background = Some(iced::Background::Color(color_heavy));
         self.pressed.background = Some(iced::Background::Color(color_heavy));
         self.disabled.background = Some(iced::Background::Color(color_light));
         self.hovered.background = Some(iced::Background::Color(color_light));
-
-        *self
+        self
     }
 }
 
@@ -111,5 +111,47 @@ impl svg::StyleSheet for SvgStyleSheet {
 impl From<SvgStyleSheet> for iced::theme::Svg {
     fn from(value: SvgStyleSheet) -> Self {
         iced::theme::Svg::Custom(Box::new(value))
+    }
+}
+
+struct ContainerStyleSheet {
+    appearance: widget::container::Appearance,
+}
+
+impl widget::container::StyleSheet for ContainerStyleSheet {
+    type Style = theme::Theme;
+
+    fn appearance(&self, style: &Self::Style) -> widget::container::Appearance {
+        self.appearance
+    }
+}
+
+impl ContainerStyleSheet {
+    fn new() -> Self {
+        ContainerStyleSheet {
+            appearance: widget::container::Appearance {
+                ..Default::default()
+            },
+        }
+    }
+
+    fn border_radius(mut self, radius: iced::BorderRadius) -> Self {
+        self.appearance.border_radius = radius;
+        self
+    }
+
+    fn background(mut self, background: Option<iced::Background>) -> Self {
+        self.appearance.background = background;
+        self
+    }
+
+    fn border_color(mut self, color: iced::Color) -> Self {
+        self.appearance.border_color = color;
+        self
+    }
+
+    fn border_width(mut self, width: f32) -> Self {
+        self.appearance.border_width = width;
+        self
     }
 }
