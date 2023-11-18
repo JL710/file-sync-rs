@@ -114,7 +114,7 @@ impl From<SvgStyleSheet> for iced::theme::Svg {
     }
 }
 
-struct ContainerStyleSheet {
+pub struct ContainerStyleSheet {
     appearance: widget::container::Appearance,
 }
 
@@ -127,7 +127,7 @@ impl widget::container::StyleSheet for ContainerStyleSheet {
 }
 
 impl ContainerStyleSheet {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ContainerStyleSheet {
             appearance: widget::container::Appearance {
                 ..Default::default()
@@ -135,23 +135,29 @@ impl ContainerStyleSheet {
         }
     }
 
-    fn border_radius(mut self, radius: iced::BorderRadius) -> Self {
+    pub fn border_radius(mut self, radius: iced::BorderRadius) -> Self {
         self.appearance.border_radius = radius;
         self
     }
 
-    fn background(mut self, background: Option<iced::Background>) -> Self {
+    pub fn background(mut self, background: Option<iced::Background>) -> Self {
         self.appearance.background = background;
         self
     }
 
-    fn border_color(mut self, color: iced::Color) -> Self {
+    pub fn border_color(mut self, color: iced::Color) -> Self {
         self.appearance.border_color = color;
         self
     }
 
-    fn border_width(mut self, width: f32) -> Self {
+    pub fn border_width(mut self, width: f32) -> Self {
         self.appearance.border_width = width;
         self
+    }
+}
+
+impl From<ContainerStyleSheet> for iced::theme::Container {
+    fn from(value: ContainerStyleSheet) -> Self {
+        iced::theme::Container::Custom(Box::new(value))
     }
 }
