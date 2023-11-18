@@ -85,7 +85,8 @@ impl Application for App {
                     .center_y()
                     .center_x()
             ]
-            .height(Length::FillPortion(20)),
+            .height(Length::FillPortion(20))
+            .padding(iced::Padding::from(10.0)),
         ];
 
         if self.syncer.is_some() {
@@ -318,48 +319,75 @@ impl App {
     }
 
     fn generate_source_view(&self) -> Element<'_, Message> {
-        column![
-            row![
-                button(
-                    widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                        std::borrow::Cow::from(
-                            &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
-                        )
-                    ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+        widget::Container::new(
+            column![
+                row![
+                    button(
+                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                            std::borrow::Cow::from(
+                                &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
+                            )
+                        ))
+                        .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                    )
+                    .on_press_maybe({
+                        if self.is_currently_syncing() {
+                            None
+                        } else {
+                            Some(Message::AddFile)
+                        }
+                    })
+                    .style(
+                        style::ButtonStyleSheet::new()
+                            .set_background(
+                                iced::Color::from_rgb8(161, 59, 59),
+                                iced::Color::from_rgb8(196, 107, 107)
+                            )
+                            .into()
+                    ),
+                    text(lang::source_block_label(&self.lang)),
+                    button(
+                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                            std::borrow::Cow::from(&include_bytes!("./assets/folder-plus.svg")[..])
+                        ))
+                        .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                    )
+                    .on_press_maybe({
+                        if self.is_currently_syncing() {
+                            None
+                        } else {
+                            Some(Message::AddDirectory)
+                        }
+                    })
+                    .style(
+                        style::ButtonStyleSheet::new()
+                            .set_background(
+                                iced::Color::from_rgb8(161, 59, 59),
+                                iced::Color::from_rgb8(196, 107, 107)
+                            )
+                            .into()
+                    ),
+                ]
+                .spacing(10),
+                widget::Container::new(
+                    scrollable(column![self.generate_source_list()]).width(Length::Fill)
                 )
-                .on_press_maybe({
-                    if self.is_currently_syncing() {
-                        None
-                    } else {
-                        Some(Message::AddFile)
-                    }
-                }),
-                text(lang::source_block_label(&self.lang)),
-                button(
-                    widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                        std::borrow::Cow::from(&include_bytes!("./assets/folder-plus.svg")[..])
-                    ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                )
-                .on_press_maybe({
-                    if self.is_currently_syncing() {
-                        None
-                    } else {
-                        Some(Message::AddDirectory)
-                    }
-                }),
+                .center_y()
+                .height(Length::Fill),
             ]
-            .spacing(10),
-            widget::Container::new(
-                scrollable(column![self.generate_source_list()]).width(Length::Fill)
-            )
-            .center_y()
-            .height(Length::Fill),
-        ]
-        .height(Length::Fill)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .align_items(iced::Alignment::Center),
+        )
         .width(Length::FillPortion(1))
-        .align_items(iced::Alignment::Center)
+        .padding(iced::Padding::from(10.0))
+        .style(
+            style::ContainerStyleSheet::new()
+                .background(Some(iced::Background::Color(iced::Color::from_rgb8(
+                    183, 79, 79,
+                ))))
+                .border_radius(iced::BorderRadius::from(20.0)),
+        )
         .into()
     }
 
