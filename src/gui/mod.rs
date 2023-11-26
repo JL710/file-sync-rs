@@ -271,12 +271,11 @@ impl App {
                             Some(Message::DeleteSource(path))
                         }
                     })
-                    .width(Length::Shrink)
                     .style(
                         style::ButtonStyleSheet::new()
                             .set_background(
-                                iced::Color::from_rgb8(230, 30, 30),
-                                iced::Color::from_rgb8(230, 100, 100)
+                                iced::Color::from_rgb8(161, 59, 59),
+                                iced::Color::from_rgb8(196, 107, 107)
                             )
                             .set_border_radius(iced::BorderRadius::from(30.0))
                             .into()
