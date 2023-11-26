@@ -59,27 +59,61 @@ impl Application for App {
 
     fn view(&self) -> Element<'_, Message> {
         let mut root_col = column![
-            row![
-                widget::Container::new(button("Language").on_press(Message::SwitchLanguage))
-                    .align_x(iced::alignment::Horizontal::Right)
-                    .width(iced::Length::Fill)
-                    .padding(iced::Padding::from(10))
-            ]
+            row![widget::Container::new(
+                button("Language").on_press(Message::SwitchLanguage).style(
+                    style::ButtonStyleSheet::new()
+                        .set_border_radius(10.0)
+                        .set_background(
+                            iced::Color::from_rgb8(207, 207, 207),
+                            iced::Color::from_rgb8(227, 227, 227)
+                        )
+                        .into()
+                ).padding(5)
+            )
+            .align_x(iced::alignment::Horizontal::Right)
+            .width(iced::Length::Fill)
+            .padding(iced::Padding::from(10))]
             .height(Length::Shrink),
             row![
                 self.generate_source_view(),
-                widget::Container::new(button(lang::start_sync(&self.lang)).on_press_maybe({
-                    if self.is_currently_syncing() {
-                        None
-                    } else {
-                        Some(Message::StartSync)
-                    }
-                }),)
+                widget::Container::new(
+                    button(
+                        widget::row![
+                            lang::start_sync(&self.lang),
+                            widget::svg::Svg::new(widget::svg::Handle::from_memory(
+                                std::borrow::Cow::from(
+                                    &include_bytes!("./assets/file-earmark-play.svg")[..]
+                                )
+                            ))
+                            .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                            .width(iced::Length::Shrink)
+                        ]
+                        .align_items(iced::Alignment::Center)
+                        .spacing(10)
+                    )
+                    .on_press_maybe({
+                        if self.is_currently_syncing() {
+                            None
+                        } else {
+                            Some(Message::StartSync)
+                        }
+                    })
+                    .style(
+                        style::ButtonStyleSheet::new()
+                            .set_background(
+                                iced::Color::from_rgb8(50, 200, 50),
+                                iced::Color::from_rgb8(150, 200, 150),
+                            )
+                            .set_border_radius(20.0)
+                            .into(),
+                    )
+                    .padding(15),
+                )
                 .width(Length::FillPortion(1))
                 .height(Length::Fill)
                 .center_y()
                 .center_x(),
-                widget::Container::new(self.generate_target_column())
+                widget::Container::new(self.generate_target_view())
                     .width(Length::FillPortion(1))
                     .height(Length::Fill)
                     .center_y()
@@ -288,7 +322,7 @@ impl App {
         col.into()
     }
 
-    fn generate_target_column(&self) -> Element<'_, Message> {
+    fn generate_target_view(&self) -> Element<'_, Message> {
         let mut col = Column::new().align_items(iced::Alignment::Center);
 
         col = col.push(
@@ -303,8 +337,8 @@ impl App {
                 .style(
                     style::ButtonStyleSheet::new()
                         .set_background(
-                            iced::Color::from_rgb8(50, 200, 50),
-                            iced::Color::from_rgb8(150, 200, 150),
+                            iced::Color::from_rgb8(232, 205, 64),
+                            iced::Color::from_rgb8(242, 225, 84),
                         )
                         .into(),
                 ),
@@ -314,7 +348,16 @@ impl App {
             col = col.push(text(target));
         }
 
-        col.into()
+        widget::container(col)
+            .style(
+                style::ContainerStyleSheet::new()
+                    .background(Some(iced::Background::Color(iced::Color::from_rgb8(
+                        254, 234, 54,
+                    ))))
+                    .border_radius(iced::BorderRadius::from(20.0)),
+            )
+            .padding(10)
+            .into()
     }
 
     fn generate_source_view(&self) -> Element<'_, Message> {

@@ -37,11 +37,11 @@ impl ButtonStyleSheet {
         }
     }
 
-    pub fn set_border_radius(mut self, radius: iced::BorderRadius) -> Self {
-        self.active.border_radius = radius;
-        self.hovered.border_radius = radius;
-        self.pressed.border_radius = radius;
-        self.disabled.border_radius = radius;
+    pub fn set_border_radius(mut self, radius: impl Into<iced::BorderRadius> + Clone) -> Self {
+        self.active.border_radius = radius.clone().into();
+        self.hovered.border_radius = radius.clone().into();
+        self.pressed.border_radius = radius.clone().into();
+        self.disabled.border_radius = radius.into();
         self
     }
 
