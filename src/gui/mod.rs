@@ -8,6 +8,7 @@ use crate::sync;
 
 mod lang;
 mod style;
+mod views;
 
 struct Flags {
     db: db::AppSettings,
@@ -23,10 +24,8 @@ struct App {
 #[derive(Debug, Clone)]
 enum Message {
     SwitchLanguage,
-    AddFile,
-    AddDirectory,
-    DeleteSource(PathBuf),
-    ChangeTarget,
+    TargetView(views::target::Message),
+    SourceView(views::source::Message),
     StartSync,
     FinishedSync,
     SyncUpdate(sync::State),
@@ -60,22 +59,25 @@ impl Application for App {
     fn view(&self) -> Element<'_, Message> {
         let mut root_col = column![
             row![widget::Container::new(
-                button("Language").on_press(Message::SwitchLanguage).style(
-                    style::ButtonStyleSheet::new()
-                        .set_border_radius(10.0)
-                        .set_background(
-                            iced::Color::from_rgb8(207, 207, 207),
-                            iced::Color::from_rgb8(227, 227, 227)
-                        )
-                        .into()
-                ).padding(5)
+                button("Language")
+                    .on_press(Message::SwitchLanguage)
+                    .style(
+                        style::ButtonStyleSheet::new()
+                            .set_border_radius(10.0)
+                            .set_background(
+                                iced::Color::from_rgb8(207, 207, 207),
+                                iced::Color::from_rgb8(227, 227, 227)
+                            )
+                            .into()
+                    )
+                    .padding(5)
             )
             .align_x(iced::alignment::Horizontal::Right)
             .width(iced::Length::Fill)
             .padding(iced::Padding::from(10))]
             .height(Length::Shrink),
             row![
-                self.generate_source_view(),
+                views::source::view(self).map(Message::SourceView),
                 widget::Container::new(
                     button(
                         widget::row![
@@ -113,11 +115,13 @@ impl Application for App {
                 .height(Length::Fill)
                 .center_y()
                 .center_x(),
-                widget::Container::new(self.generate_target_view())
-                    .width(Length::FillPortion(1))
-                    .height(Length::Fill)
-                    .center_y()
-                    .center_x()
+                widget::Container::new(
+                    views::target::view(self).map(Message::TargetView)
+                )
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
+                .center_y()
+                .center_x()
             ]
             .height(Length::FillPortion(20))
             .padding(iced::Padding::from(10.0)),
@@ -156,17 +160,11 @@ impl Application for App {
                     .unwrap();
                 self.lang = new_lang;
             }
-            Message::AddFile => {
-                self.add_files();
+            Message::TargetView(view_message) => {
+                views::target::update(self, view_message);
             }
-            Message::AddDirectory => {
-                self.add_dirs();
-            }
-            Message::DeleteSource(path) => {
-                self.db.remove_source(path).unwrap();
-            }
-            Message::ChangeTarget => {
-                self.change_target();
+            Message::SourceView(view_message) => {
+                views::source::update(self, view_message);
             }
             Message::StartSync => {
                 self.start_sync();
@@ -222,215 +220,6 @@ impl Application for App {
 impl App {
     fn is_currently_syncing(&self) -> bool {
         self.syncer.is_some()
-    }
-
-    fn add_files(&self) {
-        if let Some(paths) = rfd::FileDialog::new().pick_files() {
-            self.add_source(paths);
-        }
-    }
-
-    fn add_dirs(&self) {
-        if let Some(paths) = rfd::FileDialog::new().pick_folders() {
-            self.add_source(paths);
-        }
-    }
-
-    fn add_source(&self, paths: Vec<PathBuf>) {
-        let existing_paths = self.db.get_sources().unwrap();
-        'path_loop: for path in paths {
-            // check if exact path already exists
-            if existing_paths.contains(&path) {
-                rfd::MessageDialog::new()
-                    .set_level(rfd::MessageLevel::Error)
-                    .set_buttons(rfd::MessageButtons::Ok)
-                    .set_title("Error")
-                    .set_description(lang::source_exists_error(&self.lang, path))
-                    .show();
-                continue;
-            }
-            // check if paths overlap
-            for existing_path in &existing_paths {
-                if existing_path.starts_with(&path) || path.starts_with(existing_path) {
-                    rfd::MessageDialog::new()
-                        .set_level(rfd::MessageLevel::Error)
-                        .set_buttons(rfd::MessageButtons::Ok)
-                        .set_title("Error")
-                        .set_description(lang::sources_overlap_error(
-                            &self.lang,
-                            &path,
-                            existing_path,
-                        ))
-                        .show();
-                    continue 'path_loop;
-                }
-            }
-            // add source
-            self.db.add_source(path).unwrap();
-        }
-    }
-
-    fn change_target(&self) {
-        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-            self.db
-                .set_setting("target_path", path.to_str().unwrap())
-                .unwrap();
-        }
-    }
-
-    fn generate_source_list(&self) -> Element<'_, Message> {
-        let mut col = Column::new();
-        for path in self.db.get_sources().unwrap() {
-            col = col.push(
-                row![
-                    scrollable(
-                        widget::container::Container::new(text(path.to_str().unwrap()))
-                            .padding(iced::Padding::from(10))
-                    )
-                    .direction(widget::scrollable::Direction::Horizontal(
-                        widget::scrollable::Properties::new()
-                    ))
-                    .width(Length::FillPortion(5)),
-                    widget::Space::with_width(10),
-                    button(
-                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                            std::borrow::Cow::from(&include_bytes!("./assets/trash-fill.svg")[..])
-                        ))
-                        .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                    )
-                    .on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::DeleteSource(path))
-                        }
-                    })
-                    .style(
-                        style::ButtonStyleSheet::new()
-                            .set_background(
-                                iced::Color::from_rgb8(161, 59, 59),
-                                iced::Color::from_rgb8(196, 107, 107)
-                            )
-                            .set_border_radius(iced::BorderRadius::from(30.0))
-                            .into()
-                    )
-                ]
-                .align_items(iced::Alignment::Center),
-            )
-        }
-
-        col.into()
-    }
-
-    fn generate_target_view(&self) -> Element<'_, Message> {
-        let mut col = Column::new().align_items(iced::Alignment::Center);
-
-        col = col.push(
-            button(lang::set_target(&self.lang))
-                .on_press_maybe({
-                    if self.is_currently_syncing() {
-                        None
-                    } else {
-                        Some(Message::ChangeTarget)
-                    }
-                })
-                .style(
-                    style::ButtonStyleSheet::new()
-                        .set_background(
-                            iced::Color::from_rgb8(232, 205, 64),
-                            iced::Color::from_rgb8(242, 225, 84),
-                        )
-                        .into(),
-                ),
-        );
-
-        if let Some(target) = self.db.get_setting("target_path").unwrap() {
-            col = col.push(text(target));
-        }
-
-        widget::container(col)
-            .style(
-                style::ContainerStyleSheet::new()
-                    .background(Some(iced::Background::Color(iced::Color::from_rgb8(
-                        254, 234, 54,
-                    ))))
-                    .border_radius(iced::BorderRadius::from(20.0)),
-            )
-            .padding(10)
-            .into()
-    }
-
-    fn generate_source_view(&self) -> Element<'_, Message> {
-        widget::Container::new(
-            column![
-                row![
-                    button(
-                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                            std::borrow::Cow::from(
-                                &include_bytes!("./assets/file-earmark-arrow-down.svg")[..]
-                            )
-                        ))
-                        .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                    )
-                    .on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::AddFile)
-                        }
-                    })
-                    .style(
-                        style::ButtonStyleSheet::new()
-                            .set_background(
-                                iced::Color::from_rgb8(161, 59, 59),
-                                iced::Color::from_rgb8(196, 107, 107)
-                            )
-                            .into()
-                    ),
-                    text(lang::source_block_label(&self.lang)),
-                    button(
-                        widget::svg::Svg::new(widget::svg::Handle::from_memory(
-                            std::borrow::Cow::from(&include_bytes!("./assets/folder-plus.svg")[..])
-                        ))
-                        .style(style::SvgStyleSheet::new(255, 255, 255).into())
-                    )
-                    .on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::AddDirectory)
-                        }
-                    })
-                    .style(
-                        style::ButtonStyleSheet::new()
-                            .set_background(
-                                iced::Color::from_rgb8(161, 59, 59),
-                                iced::Color::from_rgb8(196, 107, 107)
-                            )
-                            .into()
-                    ),
-                ]
-                .spacing(10),
-                widget::Container::new(
-                    scrollable(column![self.generate_source_list()]).width(Length::Fill)
-                )
-                .center_y()
-                .height(Length::Fill),
-            ]
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .align_items(iced::Alignment::Center),
-        )
-        .width(Length::FillPortion(1))
-        .padding(iced::Padding::from(10.0))
-        .style(
-            style::ContainerStyleSheet::new()
-                .background(Some(iced::Background::Color(iced::Color::from_rgb8(
-                    183, 79, 79,
-                ))))
-                .border_radius(iced::BorderRadius::from(20.0)),
-        )
-        .into()
     }
 
     fn start_sync(&mut self) {
