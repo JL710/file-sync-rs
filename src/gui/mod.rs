@@ -1,5 +1,5 @@
 use iced::settings::Settings;
-use iced::widget::{self, button, column, row, scrollable, text, Column};
+use iced::widget::{self, button, column, row};
 use iced::{executor, Application, Command, Element, Length, Theme};
 use std::path::PathBuf;
 
@@ -115,13 +115,11 @@ impl Application for App {
                 .height(Length::Fill)
                 .center_y()
                 .center_x(),
-                widget::Container::new(
-                    views::target::view(self).map(Message::TargetView)
-                )
-                .width(Length::FillPortion(1))
-                .height(Length::Fill)
-                .center_y()
-                .center_x()
+                widget::Container::new(views::target::view(self).map(Message::TargetView))
+                    .width(Length::FillPortion(1))
+                    .height(Length::Fill)
+                    .center_y()
+                    .center_x()
             ]
             .height(Length::FillPortion(20))
             .padding(iced::Padding::from(10.0)),

@@ -121,7 +121,7 @@ pub struct ContainerStyleSheet {
 impl widget::container::StyleSheet for ContainerStyleSheet {
     type Style = theme::Theme;
 
-    fn appearance(&self, style: &Self::Style) -> widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> widget::container::Appearance {
         self.appearance
     }
 }
@@ -153,6 +153,12 @@ impl ContainerStyleSheet {
     pub fn border_width(mut self, width: f32) -> Self {
         self.appearance.border_width = width;
         self
+    }
+}
+
+impl Default for ContainerStyleSheet {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
