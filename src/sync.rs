@@ -157,12 +157,14 @@ impl Iterator for Syncer {
             _ => return None,
         };
 
-        self.jobs_done.push(job.clone());
-
         job.work();
 
+        let current_file = job.source.clone();
+
+        self.jobs_done.push(job);
+
         Some(State {
-            current_file: job.source.clone(),
+            current_file,
             total: self.jobs_todo.len() + self.jobs_done.len(),
             done: self.jobs_done.len(),
         })
