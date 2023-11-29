@@ -132,7 +132,7 @@ impl Application for App {
                         "Current Files: {}",
                         if let Some(state) = &self.syncer_state {
                             state
-                                .current_file()
+                                .current_work()
                                 .iter()
                                 .map(|path| path.to_str().unwrap())
                                 .collect::<Vec<&str>>()
@@ -202,7 +202,7 @@ impl Application for App {
                 |mut output| async move {
                     use iced::futures::sink::SinkExt;
 
-                    syncer.async_resolve().await; // FIXME: this is not async!
+                    syncer.async_resolve().await;
 
                     while let Some(state) = syncer.async_next().await {
                         output.send(Message::SyncUpdate(state)).await.unwrap();
