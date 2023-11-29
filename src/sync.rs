@@ -3,14 +3,14 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct State {
-    current_file: PathBuf,
+    current_files: Vec<PathBuf>,
     total: usize,
     done: usize,
 }
 
 impl State {
-    pub fn current_file(&self) -> &PathBuf {
-        &self.current_file
+    pub fn current_file(&self) -> &Vec<PathBuf> {
+        &self.current_files
     }
 
     pub fn total(&self) -> usize {
@@ -164,7 +164,7 @@ impl Iterator for Syncer {
         self.jobs_done.push(job);
 
         Some(State {
-            current_file,
+            current_files: vec![current_file],
             total: self.jobs_todo.len() + self.jobs_done.len(),
             done: self.jobs_done.len(),
         })
