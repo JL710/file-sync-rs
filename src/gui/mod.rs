@@ -131,9 +131,14 @@ impl Application for App {
                     widget::text(format!(
                         "Current Files: {}",
                         if let Some(state) = &self.syncer_state {
-                            state.current_file().to_str().unwrap()
+                            state
+                                .current_file()
+                                .iter()
+                                .map(|path| path.to_str().unwrap())
+                                .collect::<Vec<&str>>()
+                                .join(", ")
                         } else {
-                            "Indexing"
+                            String::from("Indexing")
                         }
                     )),
                     widget::progress_bar(
