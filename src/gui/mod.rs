@@ -127,19 +127,30 @@ impl Application for App {
 
         if self.syncer.is_some() {
             root_col = root_col.push(
-                widget::progress_bar(
-                    0_f32..=if let Some(state) = &self.syncer_state {
-                        state.total()
-                    } else {
-                        1
-                    } as f32,
-                    if let Some(state) = &self.syncer_state {
-                        state.done()
-                    } else {
-                        0
-                    } as f32,
-                )
-                .height(Length::Fixed(10.0)),
+                column![
+                    widget::text(format!(
+                        "Current Files: {}",
+                        if let Some(state) = &self.syncer_state {
+                            state.current_file().to_str().unwrap()
+                        } else {
+                            "Indexing"
+                        }
+                    )),
+                    widget::progress_bar(
+                        0_f32..=if let Some(state) = &self.syncer_state {
+                            state.total()
+                        } else {
+                            1
+                        } as f32,
+                        if let Some(state) = &self.syncer_state {
+                            state.done()
+                        } else {
+                            0
+                        } as f32,
+                    )
+                    .height(Length::Fixed(10.0)),
+                ]
+                .align_items(iced::Alignment::Center),
             )
         }
 
