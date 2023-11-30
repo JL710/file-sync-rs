@@ -76,10 +76,11 @@ impl Application for App {
             .width(iced::Length::Fill)
             .padding(iced::Padding::from(10))]
             .height(Length::Shrink),
-            row![
+            column![
                 views::source::view(self).map(Message::SourceView),
-                widget::Container::new(
-                    button(
+                views::target::view(self).map(Message::TargetView),
+                button(
+                    widget::Container::new(
                         widget::row![
                             lang::start_sync(&self.lang),
                             widget::svg::Svg::new(widget::svg::Handle::from_memory(
@@ -93,35 +94,31 @@ impl Application for App {
                         .align_items(iced::Alignment::Center)
                         .spacing(10)
                     )
-                    .on_press_maybe({
-                        if self.is_currently_syncing() {
-                            None
-                        } else {
-                            Some(Message::StartSync)
-                        }
-                    })
-                    .style(
-                        style::ButtonStyleSheet::new()
-                            .set_background(
-                                iced::Color::from_rgb8(50, 200, 50),
-                                iced::Color::from_rgb8(150, 200, 150),
-                            )
-                            .set_border_radius(20.0)
-                            .into(),
-                    )
-                    .padding(15),
+                    .align_x(iced::alignment::Horizontal::Center)
+                    .width(Length::Fill)
                 )
-                .width(Length::FillPortion(1))
-                .height(Length::Fill)
-                .center_y()
-                .center_x(),
-                widget::Container::new(views::target::view(self).map(Message::TargetView))
-                    .width(Length::FillPortion(1))
-                    .height(Length::Fill)
-                    .center_y()
-                    .center_x()
+                .on_press_maybe({
+                    if self.is_currently_syncing() {
+                        None
+                    } else {
+                        Some(Message::StartSync)
+                    }
+                })
+                .style(
+                    style::ButtonStyleSheet::new()
+                        .set_background(
+                            iced::Color::from_rgb8(50, 200, 50),
+                            iced::Color::from_rgb8(150, 200, 150),
+                        )
+                        .set_border_radius(20.0)
+                        .into(),
+                )
+                .padding(15)
+                .width(Length::Fill),
             ]
             .height(Length::FillPortion(20))
+            .width(Length::Fill)
+            .spacing(10)
             .padding(iced::Padding::from(10.0)),
         ];
 
