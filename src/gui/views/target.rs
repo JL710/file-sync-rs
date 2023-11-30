@@ -43,6 +43,9 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                 .border_radius(iced::BorderRadius::from(20.0)),
         )
         .padding(10)
+        .width(iced::Length::Fill)
+        .center_x()
+        .center_y()
         .into()
 }
 

@@ -68,14 +68,13 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
             widget::Container::new(
                 scrollable(column![generate_source_list(app)]).width(Length::Fill)
             )
-            .center_y()
-            .height(Length::Fill),
+            .center_y(),
         ]
-        .height(Length::Fill)
         .width(Length::Fill)
         .align_items(iced::Alignment::Center),
     )
     .width(Length::FillPortion(1))
+    .height(Length::Fill)
     .padding(iced::Padding::from(10.0))
     .style(
         style::ContainerStyleSheet::new()
