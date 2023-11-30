@@ -1,16 +1,17 @@
+use futures::stream::StreamExt;
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct State {
-    current_file: PathBuf,
+    current_work: Vec<PathBuf>,
     total: usize,
     done: usize,
 }
 
 impl State {
-    pub fn current_file(&self) -> &PathBuf {
-        &self.current_file
+    pub fn current_work(&self) -> &Vec<PathBuf> {
+        &self.current_work
     }
 
     pub fn total(&self) -> usize {
@@ -146,6 +147,48 @@ impl Syncer {
         }
         self.jobs_todo.reverse();
     }
+
+    pub async fn async_resolve(&mut self) {
+        tokio::task::block_in_place(move || self.resolve());
+    }
+
+    pub async fn async_next(&mut self) -> Option<State> {
+        let mut current_files: Vec<PathBuf> = Vec::new();
+        let mut futures = futures::stream::FuturesUnordered::new();
+
+        // gather next x jobs that can be executed concurrently
+        for _ in 0..10 {
+            let job = match self.jobs_todo.pop() {
+                Some(j) => j,
+                _ => return None,
+            };
+
+            if !current_files.is_empty() && job.source.starts_with(current_files.last().unwrap()) {
+                self.jobs_todo.push(job);
+                break;
+            }
+
+            current_files.push(job.source.clone());
+
+            let future = tokio::task::spawn_blocking(move || {
+                job.work();
+                job
+            });
+            futures.push(future);
+        }
+
+        // wait for them to finish executing
+        while let Some(Ok(job)) = futures.next().await {
+            self.jobs_done.push(job);
+        }
+
+        let done_len = self.jobs_done.len();
+        Some(State {
+            current_work: current_files,
+            total: self.jobs_todo.len() + done_len,
+            done: done_len,
+        })
+    }
 }
 
 impl Iterator for Syncer {
@@ -164,7 +207,7 @@ impl Iterator for Syncer {
         self.jobs_done.push(job);
 
         Some(State {
-            current_file,
+            current_work: vec![current_file],
             total: self.jobs_todo.len() + self.jobs_done.len(),
             done: self.jobs_done.len(),
         })

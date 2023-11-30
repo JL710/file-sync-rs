@@ -131,9 +131,14 @@ impl Application for App {
                     widget::text(format!(
                         "Current Files: {}",
                         if let Some(state) = &self.syncer_state {
-                            state.current_file().to_str().unwrap()
+                            state
+                                .current_work()
+                                .iter()
+                                .map(|path| path.to_str().unwrap())
+                                .collect::<Vec<&str>>()
+                                .join(", ")
                         } else {
-                            "Indexing"
+                            String::from("Indexing")
                         }
                     )),
                     widget::progress_bar(
@@ -197,23 +202,13 @@ impl Application for App {
                 |mut output| async move {
                     use iced::futures::sink::SinkExt;
 
-                    tokio::task::spawn_blocking(move || {
-                        let runtime = tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .unwrap();
-                        syncer.resolve();
-                        for state in syncer {
-                            runtime
-                                .block_on(output.send(Message::SyncUpdate(state)))
-                                .unwrap();
-                        }
-                        runtime
-                            .block_on(output.send(Message::FinishedSync))
-                            .unwrap();
-                    })
-                    .await
-                    .unwrap();
+                    syncer.async_resolve().await;
+
+                    while let Some(state) = syncer.async_next().await {
+                        output.send(Message::SyncUpdate(state)).await.unwrap();
+                    }
+
+                    output.send(Message::FinishedSync).await.unwrap();
 
                     loop {
                         tokio::task::yield_now().await;
