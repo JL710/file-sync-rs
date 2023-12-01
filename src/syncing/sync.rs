@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use futures::stream::StreamExt;
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
@@ -98,6 +99,7 @@ impl Job {
 
 #[derive(Debug, Clone)]
 pub struct Syncer {
+    target_root: PathBuf,
     /// jobs that are not done
     jobs_todo: Vec<Job>,
     /// jobs  that are done
@@ -116,6 +118,7 @@ impl Syncer {
                 })
                 .collect(),
             jobs_done: Vec::new(),
+            target_root: target,
         })
     }
 
@@ -148,11 +151,25 @@ impl Syncer {
         self.jobs_todo.reverse();
     }
 
-    pub async fn prepare(&mut self) {
+    pub async fn prepare(&mut self) -> Result<()> {
+        // write status into file
+        super::write_last_sync(
+            self.target_root.clone(),
+            &super::LastSync::new(
+                chrono::offset::Utc::now(),
+                self.jobs_todo
+                    .iter()
+                    .map(|job| job.source.clone())
+                    .collect(),
+                self.target_root.clone(),
+            ),
+        )
+        .context("Updating the last sync file failed")?;
+
         // resolve dirs
         tokio::task::block_in_place(move || self.resolve());
 
-        // TODO: write status into file
+        Ok(())
     }
 
     pub async fn async_next(&mut self) -> Option<State> {

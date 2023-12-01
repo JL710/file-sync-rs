@@ -199,7 +199,7 @@ impl Application for App {
                 |mut output| async move {
                     use iced::futures::sink::SinkExt;
 
-                    syncer.prepare().await;
+                    syncer.prepare().await.unwrap(); // TODO: fix the unwrap somehow
 
                     while let Some(state) = syncer.async_next().await {
                         output.send(Message::SyncUpdate(state)).await.unwrap();
