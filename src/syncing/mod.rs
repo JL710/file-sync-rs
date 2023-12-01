@@ -4,11 +4,11 @@ use std::path::PathBuf;
 
 pub mod sync;
 
+const LAST_SYNC_FILENAME: &str = ".last_file_sync_rs.json";
+
 /// Takes a path to a target directory.
 /// Will look if a file with stats of the last sync exist and returns the data as [`LastSync`].
 pub fn get_last_sync(path: PathBuf) -> Result<Option<LastSync>> {
-    const LAST_SYNC_FILENAME: &str = ".last_file_sync_rs.json";
-
     if !path.join(LAST_SYNC_FILENAME).is_file() {
         return Ok(None);
     }
@@ -19,6 +19,23 @@ pub fn get_last_sync(path: PathBuf) -> Result<Option<LastSync>> {
     Ok(Some(
         serde_json::from_str(&file_content).context("Could not convert to LastSync")?,
     ))
+}
+
+/// Takes a [`LastSync`] and writes it to the file container the last sync.
+/// It will overwrite any old sync information.
+pub fn write_last_sync(path: PathBuf, last_sync: &LastSync) -> Result<()> {
+    if !path.is_dir() {
+        anyhow::bail!("Path is invalid.");
+    }
+
+    std::fs::write(
+        path.join(LAST_SYNC_FILENAME),
+        serde_json::to_string(last_sync)
+            .context("Converting to json failed.")?
+            .as_bytes(),
+    )
+    .context("Writing to file failed.")?;
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize)]
