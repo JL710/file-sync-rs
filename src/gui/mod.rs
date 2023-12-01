@@ -32,6 +32,7 @@ enum Message {
     StartSync,
     FinishedSync,
     SyncUpdate(sync::State),
+    UpdateLastSync,
 }
 
 impl Application for App {
@@ -203,15 +204,23 @@ impl Application for App {
                 }
             }
             Message::SyncUpdate(state) => self.syncer_state = Some(state),
+            Message::UpdateLastSync => {
+                if let Err(error) = self.reload_last_sync() {
+                    utils::error_popup(&utils::error_chain_string(error));
+                }
+            }
         }
         Command::none()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
+        let mut subscriptions = Vec::new();
+
+        // syncer subscription
         if self.syncer.is_some() {
             struct Worker;
             let mut syncer = self.syncer.clone().unwrap();
-            iced::subscription::channel(
+            subscriptions.push(iced::subscription::channel(
                 std::any::TypeId::of::<Worker>(),
                 100,
                 |mut output| async move {
@@ -231,10 +240,21 @@ impl Application for App {
                         tokio::task::yield_now().await;
                     }
                 },
-            )
+            ))
         } else {
-            iced::Subscription::none()
+            struct IntervalUpdateLastSync;
+            subscriptions.push(iced::subscription::unfold(
+                std::any::TypeId::of::<IntervalUpdateLastSync>(),
+                (),
+                |_| async {
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    (Message::UpdateLastSync, ())
+                },
+            ));
         }
+
+        // return subscriptions
+        iced::Subscription::batch(subscriptions)
     }
 }
 
