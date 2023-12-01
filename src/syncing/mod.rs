@@ -59,4 +59,16 @@ impl LastSync {
             target: target.to_str().unwrap().to_owned(),
         }
     }
+
+    pub fn timestamp(&self) -> &DateTime {
+        &self.timestamp
+    }
+
+    pub fn sources(&self) -> Vec<PathBuf> {
+        self.sources.iter().map(PathBuf::from).collect()
+    }
+
+    pub fn target(&self) -> &String {
+        &self.target
+    }
 }

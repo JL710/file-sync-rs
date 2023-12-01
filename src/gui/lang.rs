@@ -116,3 +116,11 @@ pub fn target_in_source_error(lang: &Lang, source: &Path) -> String {
         ),
     }
 }
+
+pub fn last_sync(lang: &Lang) -> String {
+    match lang {
+        Lang::German => "Letzte Synchronisierung",
+        _ => "Last Synchronisation",
+    }
+    .into()
+}

@@ -1,10 +1,11 @@
+use anyhow::{Context, Result};
 use iced::settings::Settings;
 use iced::widget::{self, button, column, row};
 use iced::{executor, Application, Command, Element, Length, Theme};
 use std::path::PathBuf;
 
 use crate::db;
-use crate::syncing::sync;
+use crate::syncing::{self, sync};
 
 mod lang;
 mod style;
@@ -19,6 +20,7 @@ struct App {
     db: db::AppSettings,
     syncer: Option<sync::Syncer>,
     syncer_state: Option<sync::State>,
+    last_sync: Option<syncing::LastSync>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +45,11 @@ impl Application for App {
                 lang: match flags.db.get_setting("Lang").unwrap() {
                     Some(lang_str) => lang::Lang::from(lang_str.as_str()),
                     _ => lang::Lang::English,
+                },
+                last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
+                    syncing::get_last_sync(target_path.into()).unwrap()
+                } else {
+                    None
                 },
                 db: flags.db,
                 syncer: None,
@@ -183,6 +190,7 @@ impl Application for App {
             Message::FinishedSync => {
                 self.syncer = None;
                 self.syncer_state = None;
+                self.reload_last_sync().unwrap(); // FIXME: remove unwrap / handle it
             }
             Message::SyncUpdate(state) => self.syncer_state = Some(state),
         }
@@ -259,6 +267,16 @@ impl App {
                 }
             })
         }
+    }
+
+    fn reload_last_sync(&mut self) -> Result<()> {
+        self.last_sync = if let Ok(Some(target_path)) = self.db.get_setting("target_path") {
+            syncing::get_last_sync(target_path.into()).context("failed to load setting from db")?
+        } else {
+            None
+        };
+
+        Ok(())
     }
 }
 
