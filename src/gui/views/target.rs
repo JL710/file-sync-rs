@@ -1,7 +1,7 @@
 use iced::widget::{self, button, text, Column};
 use iced::Element;
 
-use super::super::{lang, style, App};
+use super::super::{lang, style, utils, App};
 
 #[derive(Debug, Clone)]
 pub(in super::super) enum Message {
@@ -66,7 +66,9 @@ pub(in super::super) fn update(app: &mut App, message: Message) {
                     .unwrap();
             }
 
-            app.reload_last_sync().unwrap(); // FIXME: remove unwrap / handle it
+            if let Err(error) = app.reload_last_sync() {
+                utils::error_popup(&utils::error_chain_string(error));
+            }
         }
     }
 }
