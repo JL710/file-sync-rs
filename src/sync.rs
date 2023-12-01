@@ -135,7 +135,7 @@ impl Syncer {
         }
     }
 
-    pub fn resolve(&mut self) {
+    fn resolve(&mut self) {
         let jobs = self.jobs_todo.clone();
         self.jobs_todo.clear();
         for job in jobs {
@@ -148,8 +148,11 @@ impl Syncer {
         self.jobs_todo.reverse();
     }
 
-    pub async fn async_resolve(&mut self) {
+    pub async fn prepare(&mut self) {
+        // resolve dirs
         tokio::task::block_in_place(move || self.resolve());
+    
+        // TODO: write status into file
     }
 
     pub async fn async_next(&mut self) -> Option<State> {
