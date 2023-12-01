@@ -10,6 +10,7 @@ use crate::syncing::{self, sync};
 mod lang;
 mod style;
 mod views;
+mod utils;
 
 struct Flags {
     db: db::AppSettings,
@@ -235,11 +236,7 @@ impl App {
         // check if target is set
         let target = match self.db.get_setting("target_path").unwrap() {
             None => {
-                rfd::MessageDialog::new()
-                    .set_buttons(rfd::MessageButtons::Ok)
-                    .set_title("Error")
-                    .set_description(lang::target_does_not_exist_error(&self.lang))
-                    .show();
+                utils::error_popup(&lang::target_does_not_exist_error(&self.lang));
                 return;
             }
             Some(target_string) => PathBuf::from(target_string),
@@ -248,11 +245,9 @@ impl App {
         // check if sources are available
         let sources = self.db.get_sources().unwrap();
         if sources.is_empty() {
-            rfd::MessageDialog::new()
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_title("Error")
-                .set_description(lang::sources_does_not_exist_error(&self.lang))
-                .show();
+            utils::error_popup(
+                &lang::sources_does_not_exist_error(&self.lang)
+            );
             return;
         }
 
@@ -283,28 +278,20 @@ impl App {
 fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerParameters) {
     match error {
         sync::InvalidSyncerParameters::SourceDoesNotExist(not_existing_source) => {
-            rfd::MessageDialog::new()
-                .set_title("Error")
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_description(lang::source_does_not_exist_error(
-                    lang,
-                    &not_existing_source,
-                ))
-                .show();
+            utils::error_popup(&lang::source_does_not_exist_error(
+                lang,
+                &not_existing_source,
+            ));
         }
         sync::InvalidSyncerParameters::SourceInTarget(source) => {
-            rfd::MessageDialog::new()
-                .set_title("Error")
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_description(lang::source_in_target_error(lang, &source))
-                .show();
+            utils::error_popup(
+                &lang::source_in_target_error(lang, &source)
+            );
         }
         sync::InvalidSyncerParameters::TargetInSource(source) => {
-            rfd::MessageDialog::new()
-                .set_title("Error")
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_description(lang::target_in_source_error(lang, &source))
-                .show();
+            utils::error_popup(
+                &lang::target_in_source_error(lang, &source)
+            );
         }
     }
 }

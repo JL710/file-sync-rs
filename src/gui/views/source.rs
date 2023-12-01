@@ -3,9 +3,7 @@ use std::path::PathBuf;
 use iced::widget::{self, button, column, row, scrollable, text, Column};
 use iced::{Element, Length};
 
-use super::super::lang;
-use super::super::style;
-use super::super::App;
+use super::super::{utils, App, style, lang};
 
 #[derive(Debug, Clone)]
 pub(in super::super) enum Message {
@@ -161,23 +159,17 @@ fn add_source(app: &App, paths: Vec<PathBuf>) {
     'path_loop: for path in paths {
         // check if exact path already exists
         if existing_paths.contains(&path) {
-            rfd::MessageDialog::new()
-                .set_level(rfd::MessageLevel::Error)
-                .set_buttons(rfd::MessageButtons::Ok)
-                .set_title("Error")
-                .set_description(lang::source_exists_error(&app.lang, path))
-                .show();
+            utils::error_popup(
+                &lang::source_exists_error(&app.lang, path)
+            );
             continue;
         }
         // check if paths overlap
         for existing_path in &existing_paths {
             if existing_path.starts_with(&path) || path.starts_with(existing_path) {
-                rfd::MessageDialog::new()
-                    .set_level(rfd::MessageLevel::Error)
-                    .set_buttons(rfd::MessageButtons::Ok)
-                    .set_title("Error")
-                    .set_description(lang::sources_overlap_error(&app.lang, &path, existing_path))
-                    .show();
+                utils::error_popup(
+                    &lang::sources_overlap_error(&app.lang, &path, existing_path)
+                );
                 continue 'path_loop;
             }
         }
