@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 pub mod sync;
 
-const LAST_SYNC_FILENAME: &str = ".last_file_sync_rs.json";
+const LAST_SYNC_FILENAME: &str = "last_file_sync_rs.json";
 
 /// Takes a path to a target directory.
 /// Will look if a file with stats of the last sync exist and returns the data as [`LastSync`].
@@ -38,9 +38,25 @@ pub fn write_last_sync(path: PathBuf, last_sync: &LastSync) -> Result<()> {
     Ok(())
 }
 
+/// The type used for representing a specific point in time.
+pub type DateTime = chrono::DateTime<chrono::offset::Utc>;
+
 #[derive(Serialize, Deserialize)]
 pub struct LastSync {
-    timestamp: usize,
+    timestamp: DateTime,
     sources: Vec<String>,
-    target: Vec<String>,
+    target: String,
+}
+
+impl LastSync {
+    pub fn new(timestamp: DateTime, sources: Vec<PathBuf>, target: PathBuf) -> Self {
+        Self {
+            timestamp,
+            sources: sources
+                .iter()
+                .map(|source| source.to_str().unwrap().to_owned())
+                .collect(),
+            target: target.to_str().unwrap().to_owned(),
+        }
+    }
 }
