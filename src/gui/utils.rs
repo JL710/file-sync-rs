@@ -4,4 +4,18 @@ pub fn error_popup(prompt: &str) {
         .set_buttons(rfd::MessageButtons::Ok)
         .set_description(prompt)
         .show();
-} 
+}
+
+pub fn error_chain_string(error: anyhow::Error) -> String {
+    let mut message = String::new();
+
+    let mut chain_iter = error.chain();
+
+    message += &format!("Error: {}\n", chain_iter.next().unwrap());
+
+    for err in chain_iter {
+        message += &format!("\nCaused by:\n\t{}", err);
+    }
+
+    message
+}

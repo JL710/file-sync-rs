@@ -9,8 +9,8 @@ use crate::syncing::{self, sync};
 
 mod lang;
 mod style;
-mod views;
 mod utils;
+mod views;
 
 struct Flags {
     db: db::AppSettings,
@@ -48,7 +48,14 @@ impl Application for App {
                     _ => lang::Lang::English,
                 },
                 last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
-                    syncing::get_last_sync(target_path.into()).unwrap()
+                    match syncing::get_last_sync(target_path.into()) {
+                        Err(error) => {
+                            let error_message = utils::error_chain_string(error);
+                            utils::error_popup(&error_message);
+                            panic!("{}", error_message);
+                        }
+                        Ok(last_sync) => last_sync,
+                    }
                 } else {
                     None
                 },
@@ -191,7 +198,9 @@ impl Application for App {
             Message::FinishedSync => {
                 self.syncer = None;
                 self.syncer_state = None;
-                self.reload_last_sync().unwrap(); // FIXME: remove unwrap / handle it
+                if let Err(error) = self.reload_last_sync() {
+                    utils::error_popup(&utils::error_chain_string(error));
+                }
             }
             Message::SyncUpdate(state) => self.syncer_state = Some(state),
         }
@@ -208,10 +217,12 @@ impl Application for App {
                 |mut output| async move {
                     use iced::futures::sink::SinkExt;
 
-                    syncer.prepare().await.unwrap(); // TODO: fix the unwrap somehow
-
-                    while let Some(state) = syncer.async_next().await {
-                        output.send(Message::SyncUpdate(state)).await.unwrap();
+                    if let Err(error) = syncer.prepare().await {
+                        utils::error_popup(&utils::error_chain_string(error));
+                    } else {
+                        while let Some(state) = syncer.async_next().await {
+                            output.send(Message::SyncUpdate(state)).await.unwrap();
+                        }
                     }
 
                     output.send(Message::FinishedSync).await.unwrap();
@@ -245,9 +256,7 @@ impl App {
         // check if sources are available
         let sources = self.db.get_sources().unwrap();
         if sources.is_empty() {
-            utils::error_popup(
-                &lang::sources_does_not_exist_error(&self.lang)
-            );
+            utils::error_popup(&lang::sources_does_not_exist_error(&self.lang));
             return;
         }
 
@@ -284,14 +293,10 @@ fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerPa
             ));
         }
         sync::InvalidSyncerParameters::SourceInTarget(source) => {
-            utils::error_popup(
-                &lang::source_in_target_error(lang, &source)
-            );
+            utils::error_popup(&lang::source_in_target_error(lang, &source));
         }
         sync::InvalidSyncerParameters::TargetInSource(source) => {
-            utils::error_popup(
-                &lang::target_in_source_error(lang, &source)
-            );
+            utils::error_popup(&lang::target_in_source_error(lang, &source));
         }
     }
 }
