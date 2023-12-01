@@ -4,7 +4,7 @@ use iced::{executor, Application, Command, Element, Length, Theme};
 use std::path::PathBuf;
 
 use crate::db;
-use crate::sync;
+use crate::syncing::sync;
 
 mod lang;
 mod style;

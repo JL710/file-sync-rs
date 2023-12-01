@@ -1,6 +1,6 @@
 mod db;
 mod gui;
-mod sync;
+mod syncing;
 use crate::gui::run;
 
 fn main() {
