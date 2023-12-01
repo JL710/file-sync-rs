@@ -34,6 +34,14 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
         col = col.push(text(target));
     }
 
+    if let Some(last_sync) = &app.last_sync {
+        col = col.push(text(format!(
+            "{}: {}",
+            lang::last_sync(&app.lang),
+            last_sync.timestamp().format("%d.%m.%Y %H:%M")
+        )));
+    }
+
     widget::container(col)
         .style(
             style::ContainerStyleSheet::new()
@@ -57,6 +65,8 @@ pub(in super::super) fn update(app: &mut App, message: Message) {
                     .set_setting("target_path", path.to_str().unwrap())
                     .unwrap();
             }
+
+            app.reload_last_sync().unwrap(); // FIXME: remove unwrap / handle it
         }
     }
 }
