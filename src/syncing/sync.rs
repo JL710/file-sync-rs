@@ -151,7 +151,7 @@ impl Syncer {
     pub async fn prepare(&mut self) {
         // resolve dirs
         tokio::task::block_in_place(move || self.resolve());
-    
+
         // TODO: write status into file
     }
 
