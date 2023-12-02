@@ -9,7 +9,7 @@ use crate::syncing::{self, sync};
 
 mod lang;
 mod style;
-mod utils;
+pub mod utils;
 mod views;
 
 struct Flags {
@@ -42,12 +42,21 @@ impl Application for App {
     type Flags = Flags;
 
     fn new(flags: Flags) -> (Self, Command<Self::Message>) {
+        let lang = match match flags.db.get_setting("Lang") {
+            Ok(value) => value,
+            Err(error) => {
+                let error_string = utils::error_chain_string(error);
+                utils::error_popup(&error_string);
+                panic!("{}", error_string);
+            }
+        } {
+            Some(lang_str) => lang::Lang::from(lang_str.as_str()),
+            _ => lang::Lang::English,
+        };
+
         (
             App {
-                lang: match flags.db.get_setting("Lang").unwrap() {
-                    Some(lang_str) => lang::Lang::from(lang_str.as_str()),
-                    _ => lang::Lang::English,
-                },
+                lang,
                 last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
                     match syncing::get_last_sync(target_path.into()) {
                         Err(error) => {
@@ -265,7 +274,13 @@ impl App {
 
     fn start_sync(&mut self) {
         // check if target is set
-        let target = match self.db.get_setting("target_path").unwrap() {
+        let target = match match self.db.get_setting("target_path") {
+            Ok(value) => value,
+            Err(error) => {
+                utils::error_popup(&utils::error_chain_string(error));
+                return;
+            }
+        } {
             None => {
                 utils::error_popup(&lang::target_does_not_exist_error(&self.lang));
                 return;
