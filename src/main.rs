@@ -18,7 +18,14 @@ fn get_db_path() -> String {
 }
 
 fn main() {
-    let app_settings = db::AppSettings::new(get_db_path().into()).unwrap();
+    let app_settings = match db::AppSettings::new(get_db_path().into()) {
+        Ok(db) => db,
+        Err(error) => {
+            let error_string = gui::utils::error_chain_string(error);
+            gui::utils::error_popup(&error_string);
+            panic!("{}", error_string);
+        }
+    };
 
     run(app_settings);
 }

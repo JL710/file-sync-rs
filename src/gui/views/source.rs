@@ -93,14 +93,23 @@ pub(in super::super) fn update(app: &mut App, message: Message) {
             add_dirs(app);
         }
         Message::DeleteSource(path) => {
-            app.db.remove_source(path).unwrap();
+            if let Err(error) = app.db.remove_source(path) {
+                utils::error_popup(&utils::error_chain_string(error));
+            }
         }
     }
 }
 
 fn generate_source_list(app: &App) -> Element<'_, Message> {
     let mut col = Column::new();
-    for path in app.db.get_sources().unwrap() {
+    let paths = match app.db.get_sources() {
+        Ok(value) => value,
+        Err(error) => {
+            utils::error_popup(&utils::error_chain_string(error));
+            Vec::new()
+        }
+    };
+    for path in paths {
         col = col.push(
             row![
                 scrollable(
@@ -155,7 +164,13 @@ fn add_dirs(app: &App) {
 }
 
 fn add_source(app: &App, paths: Vec<PathBuf>) {
-    let existing_paths = app.db.get_sources().unwrap();
+    let existing_paths = match app.db.get_sources() {
+        Ok(value) => value,
+        Err(error) => {
+            utils::error_popup(&utils::error_chain_string(error));
+            return;
+        }
+    };
     'path_loop: for path in paths {
         // check if exact path already exists
         if existing_paths.contains(&path) {
@@ -174,6 +189,8 @@ fn add_source(app: &App, paths: Vec<PathBuf>) {
             }
         }
         // add source
-        app.db.add_source(path).unwrap();
+        if let Err(error) = app.db.add_source(path) {
+            utils::error_popup(&utils::error_chain_string(error));
+        }
     }
 }

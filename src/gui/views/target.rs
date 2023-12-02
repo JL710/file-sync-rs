@@ -30,7 +30,13 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
             ),
     );
 
-    if let Some(target) = app.db.get_setting("target_path").unwrap() {
+    if let Some(target) = match app.db.get_setting("target_path") {
+        Ok(value) => value,
+        Err(error) => {
+            utils::error_popup(&utils::error_chain_string(error));
+            None
+        }
+    } {
         col = col.push(text(target));
     }
 
@@ -61,9 +67,9 @@ pub(in super::super) fn update(app: &mut App, message: Message) {
     match message {
         Message::ChangeTarget => {
             if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                app.db
-                    .set_setting("target_path", path.to_str().unwrap())
-                    .unwrap();
+                if let Err(error) = app.db.set_setting("target_path", path.to_str().unwrap()) {
+                    utils::error_popup(&utils::error_chain_string(error));
+                }
             }
 
             if let Err(error) = app.reload_last_sync() {
