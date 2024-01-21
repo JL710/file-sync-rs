@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
 use std::io::{Read, Seek, Write};
+use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -44,10 +45,8 @@ impl Job {
     }
 
     fn file_work(&self) {
-        const BUFF_SIZE: usize = 4096;
-
-        let mut source_file = std::fs::File::open(&self.source).unwrap();
-        let mut target_file = std::fs::File::open(&self.target).unwrap();
+        let mut source_file = std::fs::OpenOptions::new().read(true).open(&self.source).unwrap();
+        let mut target_file = std::fs::OpenOptions::new().write(true).read(true).open(&self.target).unwrap();
 
         let source_file_metadata = source_file.metadata().unwrap();
         let target_file_metadata = target_file.metadata().unwrap();
@@ -64,36 +63,18 @@ impl Job {
             target_file.set_len(source_file_metadata.len()).unwrap();
         }
 
-        let mut source_buff: [u8; BUFF_SIZE] = [0; BUFF_SIZE]; // using 1024 because thats one page size
-        let mut target_buff: [u8; BUFF_SIZE] = [0; BUFF_SIZE];
+        // read content of files
+        let mut source_file_content = Vec::with_capacity(source_file_metadata.len() as usize);
+        let mut target_file_content = Vec::with_capacity(target_file_metadata.len() as usize);
+        source_file.read_to_end(&mut source_file_content).unwrap();
+        target_file.read_to_end(&mut target_file_content).unwrap();
 
-        loop {
-            let could_read_source = source_file.read_exact(&mut source_buff).is_ok();
-            let could_read_target = target_file.read_exact(&mut target_buff).is_ok();
-
-            if could_read_source && could_read_target {
-                if source_buff != target_buff {
-                    // go back with cursor and overwrite content
-                    target_file
-                        .seek(std::io::SeekFrom::Current(-(BUFF_SIZE as i64)))
-                        .unwrap();
-                    target_file.write_all(&source_buff).unwrap();
-                }
-            } else {
-                // check the tail and overwrite if needed
-                let mut source_tail: Vec<u8> = Vec::with_capacity(BUFF_SIZE - 1);
-                let mut target_tail: Vec<u8> = Vec::with_capacity(BUFF_SIZE - 1);
-                source_file.read_to_end(&mut source_tail).unwrap();
-                target_file.read_to_end(&mut target_tail).unwrap();
-                if source_tail != target_tail {
-                    target_file
-                        .seek(std::io::SeekFrom::Current(-(source_tail.len() as i64)))
-                        .unwrap();
-                    target_file.write_all(&source_tail).unwrap();
-                }
-                break;
-            }
+        // return if files are equal
+        if source_file_content == target_file_content {
+            return;
         }
+        // write all file content
+        target_file.write_all_at(&source_file_content, 0).unwrap();
     }
 }
 
