@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
-use std::io::{Read, Seek, Write};
+use std::io::Read;
 use std::os::unix::fs::FileExt;
 use std::path::PathBuf;
 
@@ -32,49 +32,80 @@ struct Job {
 }
 
 impl Job {
-    fn work(&self) {
+    fn work(&self) -> Result<()> {
         if self.source.is_file() {
             if self.target.is_file() {
-                self.file_work()
+                self.file_work()?;
             } else {
-                std::fs::copy(&self.source, &self.target).unwrap();
+                std::fs::copy(&self.source, &self.target).context(format!(
+                    "Could not copy file {:?} to {:?}",
+                    self.source, self.target
+                ))?;
             }
         } else if !self.target.is_dir() {
-            std::fs::create_dir(&self.target).unwrap();
+            std::fs::create_dir(&self.target)
+                .context(format!("Could not create directory {:?}", self.target))?;
         }
+        Ok(())
     }
 
-    fn file_work(&self) {
-        let mut source_file = std::fs::OpenOptions::new().read(true).open(&self.source).unwrap();
-        let mut target_file = std::fs::OpenOptions::new().write(true).read(true).open(&self.target).unwrap();
+    fn file_work(&self) -> Result<()> {
+        let mut source_file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(&self.source)
+            .context(format!("Could not open file {:?}", self.source))?;
+        let mut target_file = std::fs::OpenOptions::new()
+            .write(true)
+            .read(true)
+            .open(&self.target)
+            .context(format!("Could not open file {:?}", self.target))?;
 
-        let source_file_metadata = source_file.metadata().unwrap();
-        let target_file_metadata = target_file.metadata().unwrap();
+        let source_file_metadata = source_file
+            .metadata()
+            .context(format!("Could query metadata of file {:?}", self.source))?;
+        let target_file_metadata = target_file
+            .metadata()
+            .context(format!("Could query metadata of file {:?}", self.source))?;
 
         // change permissions if differ
         if source_file_metadata.permissions() != target_file_metadata.permissions() {
             target_file
                 .set_permissions(source_file_metadata.permissions())
-                .unwrap();
+                .context(format!(
+                    "Could not set target file metadata for {:?}",
+                    self.target
+                ))?;
         }
 
         // change length of the file if differ
         if source_file_metadata.len() != target_file_metadata.len() {
-            target_file.set_len(source_file_metadata.len()).unwrap();
+            target_file
+                .set_len(source_file_metadata.len())
+                .context(format!(
+                    "Could not set target file length for {:?}",
+                    self.target
+                ))?;
         }
 
         // read content of files
         let mut source_file_content = Vec::with_capacity(source_file_metadata.len() as usize);
         let mut target_file_content = Vec::with_capacity(target_file_metadata.len() as usize);
-        source_file.read_to_end(&mut source_file_content).unwrap();
-        target_file.read_to_end(&mut target_file_content).unwrap();
+        source_file
+            .read_to_end(&mut source_file_content)
+            .context(format!("Could not read file {:?}", self.source))?;
+        target_file
+            .read_to_end(&mut target_file_content)
+            .context(format!("Could not read file {:?}", self.target))?;
 
         // return if files are equal
         if source_file_content == target_file_content {
-            return;
+            return Ok(());
         }
         // write all file content
-        target_file.write_all_at(&source_file_content, 0).unwrap();
+        target_file
+            .write_all_at(&source_file_content, 0)
+            .context(format!("Could not write to file {:?}", self.target))?;
+        Ok(())
     }
 }
 
@@ -153,7 +184,7 @@ impl Syncer {
         Ok(())
     }
 
-    pub async fn async_next(&mut self) -> Option<State> {
+    pub async fn async_next(&mut self) -> Option<Result<State>> {
         let mut current_files: Vec<PathBuf> = Vec::new();
         let mut futures = futures::stream::FuturesUnordered::new();
 
@@ -172,28 +203,31 @@ impl Syncer {
             current_files.push(job.source.clone());
 
             let future = tokio::task::spawn_blocking(move || {
-                job.work();
-                job
+                let res = job.work();
+                (res, job)
             });
             futures.push(future);
         }
 
         // wait for them to finish executing
-        while let Some(Ok(job)) = futures.next().await {
-            self.jobs_done.push(job);
+        while let Some(Ok(future)) = futures.next().await {
+            if let Err(err) = future.0 {
+                return Some(Err(err));
+            }
+            self.jobs_done.push(future.1);
         }
 
         let done_len = self.jobs_done.len();
-        Some(State {
+        Some(Ok(State {
             current_work: current_files,
             total: self.jobs_todo.len() + done_len,
             done: done_len,
-        })
+        }))
     }
 }
 
 impl Iterator for Syncer {
-    type Item = State;
+    type Item = Result<State>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let job = match self.jobs_todo.pop() {
@@ -201,17 +235,20 @@ impl Iterator for Syncer {
             _ => return None,
         };
 
-        job.work();
+        let job_res = job.work();
+        if let Err(err) = job_res {
+            return Some(Err(err));
+        }
 
         let current_file = job.source.clone();
 
         self.jobs_done.push(job);
 
-        Some(State {
+        Some(Ok(State {
             current_work: vec![current_file],
             total: self.jobs_todo.len() + self.jobs_done.len(),
             done: self.jobs_done.len(),
-        })
+        }))
     }
 }
 

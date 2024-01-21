@@ -238,8 +238,20 @@ impl Application for App {
                     if let Err(error) = syncer.prepare().await {
                         utils::error_popup(&utils::error_chain_string(error));
                     } else {
-                        while let Some(state) = syncer.async_next().await {
-                            output.send(Message::SyncUpdate(state)).await.unwrap();
+                        loop {
+                            let syncer_result = syncer.async_next().await;
+                            match syncer_result {
+                                None => {
+                                    break;
+                                }
+                                Some(Ok(state)) => {
+                                    output.send(Message::SyncUpdate(state)).await.unwrap();
+                                }
+                                Some(Err(err)) => {
+                                    utils::error_popup(&utils::error_chain_string(err));
+                                    break;
+                                }
+                            }
                         }
                     }
 
