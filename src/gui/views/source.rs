@@ -22,7 +22,9 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                             &include_bytes!("../assets/file-earmark-arrow-down.svg")[..]
                         )
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                    .style(iced::theme::Svg::Custom(Box::new(
+                        style::SvgStyleSheet::new(255, 255, 255)
+                    )))
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
@@ -31,20 +33,20 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddFile)
                     }
                 })
-                .style(
-                    style::ButtonStyleSheet::new()
-                        .set_background(
-                            iced::Color::from_rgb8(161, 59, 59),
-                            iced::Color::from_rgb8(196, 107, 107)
-                        )
-                        .into()
-                ),
+                .style(iced::theme::Button::custom(
+                    style::ButtonStyleSheet::new().set_background(
+                        iced::Color::from_rgb8(161, 59, 59),
+                        iced::Color::from_rgb8(196, 107, 107)
+                    )
+                )),
                 text(lang::source_block_label(&app.lang)),
                 button(
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/folder-plus.svg")[..])
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                    .style(iced::theme::Svg::Custom(Box::new(
+                        style::SvgStyleSheet::new(255, 255, 255)
+                    )))
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
@@ -53,14 +55,12 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddDirectory)
                     }
                 })
-                .style(
-                    style::ButtonStyleSheet::new()
-                        .set_background(
-                            iced::Color::from_rgb8(161, 59, 59),
-                            iced::Color::from_rgb8(196, 107, 107)
-                        )
-                        .into()
-                ),
+                .style(iced::theme::Button::custom(
+                    style::ButtonStyleSheet::new().set_background(
+                        iced::Color::from_rgb8(161, 59, 59),
+                        iced::Color::from_rgb8(196, 107, 107)
+                    )
+                )),
             ]
             .spacing(10),
             widget::Container::new(
@@ -79,7 +79,7 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
             .background(Some(iced::Background::Color(iced::Color::from_rgb8(
                 183, 79, 79,
             ))))
-            .border_radius(iced::BorderRadius::from(20.0)),
+            .border_radius(iced::Border::with_radius(20.0)),
     )
     .into()
 }
@@ -125,7 +125,9 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/trash-fill.svg")[..])
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255).into())
+                    .style(iced::theme::Svg::Custom(Box::new(
+                        style::SvgStyleSheet::new(255, 255, 255)
+                    )))
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
@@ -134,15 +136,14 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                         Some(Message::DeleteSource(path))
                     }
                 })
-                .style(
+                .style(iced::theme::Button::custom(
                     style::ButtonStyleSheet::new()
                         .set_background(
                             iced::Color::from_rgb8(161, 59, 59),
                             iced::Color::from_rgb8(196, 107, 107)
                         )
-                        .set_border_radius(iced::BorderRadius::from(30.0))
-                        .into()
-                )
+                        .set_border(iced::Border::with_radius(30.0))
+                ))
             ]
             .align_items(iced::Alignment::Center),
         )
