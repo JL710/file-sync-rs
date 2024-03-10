@@ -16,7 +16,7 @@ impl ButtonStyleSheet {
         let appearance_heavy = button::Appearance {
             background: Some(iced::Background::Color(iced::Color::from_rgb8(51, 89, 218))),
             text_color: iced::Color::from_rgb8(255, 255, 255),
-            border_radius: iced::BorderRadius::from(3.0),
+            border: iced::Border::with_radius(3.0),
             ..Default::default()
         };
 
@@ -25,7 +25,7 @@ impl ButtonStyleSheet {
                 94, 124, 226,
             ))),
             text_color: iced::Color::from_rgb8(255, 255, 255),
-            border_radius: iced::BorderRadius::from(3.0),
+            border: iced::Border::with_radius(3.0),
             ..Default::default()
         };
 
@@ -37,11 +37,11 @@ impl ButtonStyleSheet {
         }
     }
 
-    pub fn set_border_radius(mut self, radius: impl Into<iced::BorderRadius> + Clone) -> Self {
-        self.active.border_radius = radius.clone().into();
-        self.hovered.border_radius = radius.clone().into();
-        self.pressed.border_radius = radius.clone().into();
-        self.disabled.border_radius = radius.into();
+    pub fn set_border(mut self, border: impl Into<iced::Border> + Clone) -> Self {
+        self.active.border = border.clone().into();
+        self.hovered.border = border.clone().into();
+        self.pressed.border = border.clone().into();
+        self.disabled.border = border.into();
         self
     }
 
@@ -135,8 +135,8 @@ impl ContainerStyleSheet {
         }
     }
 
-    pub fn border_radius(mut self, radius: iced::BorderRadius) -> Self {
-        self.appearance.border_radius = radius;
+    pub fn border_radius(mut self, border: iced::Border) -> Self {
+        self.appearance.border = border;
         self
     }
 
@@ -146,12 +146,12 @@ impl ContainerStyleSheet {
     }
 
     pub fn border_color(mut self, color: iced::Color) -> Self {
-        self.appearance.border_color = color;
+        self.appearance.border.color = color;
         self
     }
 
     pub fn border_width(mut self, width: f32) -> Self {
-        self.appearance.border_width = width;
+        self.appearance.border.width = width;
         self
     }
 }

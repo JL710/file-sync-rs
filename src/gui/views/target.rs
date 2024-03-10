@@ -20,14 +20,12 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                     Some(Message::ChangeTarget)
                 }
             })
-            .style(
-                style::ButtonStyleSheet::new()
-                    .set_background(
-                        iced::Color::from_rgb8(232, 205, 64),
-                        iced::Color::from_rgb8(242, 225, 84),
-                    )
-                    .into(),
-            ),
+            .style(iced::theme::Button::custom(
+                style::ButtonStyleSheet::new().set_background(
+                    iced::Color::from_rgb8(232, 205, 64),
+                    iced::Color::from_rgb8(242, 225, 84),
+                ),
+            )),
     );
 
     if let Some(target) = match app.db.get_setting("target_path") {
@@ -54,7 +52,7 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                 .background(Some(iced::Background::Color(iced::Color::from_rgb8(
                     254, 234, 54,
                 ))))
-                .border_radius(iced::BorderRadius::from(20.0)),
+                .border_radius(iced::Border::with_radius(20.0)),
         )
         .padding(10)
         .width(iced::Length::Fill)
