@@ -22,9 +22,9 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                             &include_bytes!("../assets/file-earmark-arrow-down.svg")[..]
                         )
                     ))
-                    .style(iced::theme::Svg::Custom(Box::new(
+                    .style(
                         style::SvgStyleSheet::new(255, 255, 255)
-                    )))
+                    )
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -34,20 +34,20 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddFile)
                     }
                 })
-                .style(iced::theme::Button::custom(
+                .style(
                     style::ButtonStyleSheet::new().set_background(
                         iced::Color::from_rgb8(161, 59, 59),
                         iced::Color::from_rgb8(196, 107, 107)
                     )
-                )),
+                ),
                 text(lang::source_block_label(&app.lang)),
                 button(
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/folder-plus.svg")[..])
                     ))
-                    .style(iced::theme::Svg::Custom(Box::new(
+                    .style(
                         style::SvgStyleSheet::new(255, 255, 255)
-                    )))
+                    )
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -57,12 +57,12 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddDirectory)
                     }
                 })
-                .style(iced::theme::Button::custom(
+                .style(
                     style::ButtonStyleSheet::new().set_background(
                         iced::Color::from_rgb8(161, 59, 59),
                         iced::Color::from_rgb8(196, 107, 107)
                     )
-                )),
+                ),
             ]
             .spacing(10),
             widget::Container::new(
@@ -127,9 +127,9 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/trash-fill.svg")[..])
                     ))
-                    .style(iced::theme::Svg::Custom(Box::new(
+                    .style(
                         style::SvgStyleSheet::new(255, 255, 255)
-                    )))
+                    )
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -139,14 +139,14 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                         Some(Message::DeleteSource(path))
                     }
                 })
-                .style(iced::theme::Button::custom(
+                .style(
                     style::ButtonStyleSheet::new()
                         .set_background(
                             iced::Color::from_rgb8(161, 59, 59),
                             iced::Color::from_rgb8(196, 107, 107)
                         )
                         .set_border(iced::Border::with_radius(30.0))
-                ))
+                )
             ]
             .align_items(iced::Alignment::Center),
         )

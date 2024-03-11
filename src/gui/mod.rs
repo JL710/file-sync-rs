@@ -93,14 +93,14 @@ impl Application for App {
             row![widget::Container::new(
                 button("Language")
                     .on_press(Message::SwitchLanguage)
-                    .style(iced::theme::Button::custom(
+                    .style(
                         style::ButtonStyleSheet::new()
                             .set_border(iced::Border::with_radius(10.0))
                             .set_background(
                                 iced::Color::from_rgb8(207, 207, 207),
                                 iced::Color::from_rgb8(227, 227, 227)
                             )
-                    ))
+                    )
                     .padding(5)
             )
             .align_x(iced::alignment::Horizontal::Right)
@@ -119,9 +119,9 @@ impl Application for App {
                                     &include_bytes!("./assets/file-earmark-play.svg")[..]
                                 )
                             ))
-                            .style(iced::theme::Svg::Custom(Box::new(
+                            .style(
                                 style::SvgStyleSheet::new(255, 255, 255)
-                            )))
+                            )
                             .width(iced::Length::Shrink)
                         ]
                         .align_items(iced::Alignment::Center)
@@ -137,14 +137,14 @@ impl Application for App {
                         Some(Message::StartSync)
                     }
                 })
-                .style(iced::theme::Button::custom(
+                .style(
                     style::ButtonStyleSheet::new()
                         .set_background(
                             iced::Color::from_rgb8(50, 200, 50),
                             iced::Color::from_rgb8(150, 200, 150),
                         )
                         .set_border(iced::Border::with_radius(20.0))
-                ),)
+                ,)
                 .padding(15)
                 .width(Length::Fill),
             ]
