@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
 use std::io::Read;
-use std::os::unix::fs::FileExt;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -103,7 +103,7 @@ impl Job {
         }
         // write all file content
         target_file
-            .write_all_at(&source_file_content, 0)
+            .write_all(&source_file_content)
             .context(format!("Could not write to file {:?}", self.target))?;
         Ok(())
     }
