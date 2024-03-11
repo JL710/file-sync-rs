@@ -73,7 +73,14 @@ impl Application for App {
                 syncer: None,
                 syncer_state: None,
             },
-            Command::none(),
+            iced::command::channel(100, |mut channel| async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    channel
+                        .try_send(Message::UpdateLastSync)
+                        .expect("Could not send last sync message");
+                }
+            }),
         )
     }
 
@@ -262,16 +269,6 @@ impl Application for App {
                     }
                 },
             ))
-        } else {
-            struct IntervalUpdateLastSync;
-            subscriptions.push(iced::subscription::unfold(
-                std::any::TypeId::of::<IntervalUpdateLastSync>(),
-                (),
-                |_| async {
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                    (Message::UpdateLastSync, ())
-                },
-            ));
         }
 
         // return subscriptions
