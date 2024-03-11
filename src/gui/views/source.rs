@@ -25,6 +25,7 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                     .style(iced::theme::Svg::Custom(Box::new(
                         style::SvgStyleSheet::new(255, 255, 255)
                     )))
+                    .width(Length::Shrink)
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
@@ -47,6 +48,7 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                     .style(iced::theme::Svg::Custom(Box::new(
                         style::SvgStyleSheet::new(255, 255, 255)
                     )))
+                    .width(Length::Shrink)
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
@@ -128,6 +130,7 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                     .style(iced::theme::Svg::Custom(Box::new(
                         style::SvgStyleSheet::new(255, 255, 255)
                     )))
+                    .width(Length::Shrink)
                 )
                 .on_press_maybe({
                     if app.is_currently_syncing() {
