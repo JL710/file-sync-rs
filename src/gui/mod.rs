@@ -119,9 +119,7 @@ impl Application for App {
                                     &include_bytes!("./assets/file-earmark-play.svg")[..]
                                 )
                             ))
-                            .style(
-                                style::SvgStyleSheet::new(255, 255, 255)
-                            )
+                            .style(style::SvgStyleSheet::new(255, 255, 255))
                             .width(iced::Length::Shrink)
                         ]
                         .align_items(iced::Alignment::Center)
@@ -143,8 +141,8 @@ impl Application for App {
                             iced::Color::from_rgb8(50, 200, 50),
                             iced::Color::from_rgb8(150, 200, 150),
                         )
-                        .set_border(iced::Border::with_radius(20.0))
-                ,)
+                        .set_border(iced::Border::with_radius(20.0)),
+                )
                 .padding(15)
                 .width(Length::Fill),
             ]
