@@ -141,7 +141,12 @@ impl Application for App {
                             iced::Color::from_rgb8(50, 200, 50),
                             iced::Color::from_rgb8(150, 200, 150),
                         )
-                        .set_border(iced::Border::with_radius(20.0)),
+                        .set_border(iced::Border::with_radius(20.0))
+                        .shadow(iced::Shadow {
+                            color: iced::Color::from_rgb8(0, 0, 0),
+                            offset: iced::Vector::new(0.0, 0.0),
+                            blur_radius: 8.0
+                        }),
                 )
                 .padding(15)
                 .width(Length::Fill),
