@@ -50,7 +50,12 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                 .background(Some(iced::Background::Color(iced::Color::from_rgb8(
                     254, 234, 54,
                 ))))
-                .border_radius(iced::Border::with_radius(20.0)),
+                .border_radius(iced::Border::with_radius(20.0))
+                .shadow(iced::Shadow {
+                    color: iced::Color::from_rgb8(0, 0, 0),
+                    offset: iced::Vector::new(0.0, 0.0),
+                    blur_radius: 8.0,
+                }),
         )
         .padding(10)
         .width(iced::Length::Fill)

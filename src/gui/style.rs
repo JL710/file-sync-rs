@@ -52,6 +52,14 @@ impl ButtonStyleSheet {
         self.hovered.background = Some(iced::Background::Color(color_light));
         self
     }
+
+    pub fn shadow(mut self, shadow: iced::Shadow) -> Self {
+        self.active.shadow = shadow;
+        self.pressed.shadow = shadow;
+        self.disabled.shadow = shadow;
+        self.hovered.shadow = shadow;
+        self
+    }
 }
 
 impl button::StyleSheet for ButtonStyleSheet {
@@ -152,6 +160,11 @@ impl ContainerStyleSheet {
 
     pub fn border_width(mut self, width: f32) -> Self {
         self.appearance.border.width = width;
+        self
+    }
+
+    pub fn shadow(mut self, shadow: iced::Shadow) -> Self {
+        self.appearance.shadow = shadow;
         self
     }
 }
