@@ -3,6 +3,8 @@ use iced::settings::Settings;
 use iced::widget::{self, button, column, row};
 use iced::{executor, Application, Command, Element, Length, Theme};
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::db;
 use crate::syncing::{self, sync};
@@ -19,9 +21,9 @@ struct Flags {
 struct App {
     lang: lang::Lang,
     db: db::AppSettings,
-    syncer: Option<sync::Syncer>,
     syncer_state: Option<sync::State>,
     last_sync: Option<syncing::LastSync>,
+    syncer: Option<Arc<Mutex<sync::Syncer>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -248,12 +250,14 @@ impl App {
 
     fn create_sync_subscription(&self) -> iced::Subscription<Message> {
         struct Worker;
-        let mut syncer = self.syncer.clone().unwrap();
+        let arc_syncer = self.syncer.clone().unwrap();
         iced::subscription::channel(
             std::any::TypeId::of::<Worker>(),
             100,
             |mut output| async move {
                 use iced::futures::sink::SinkExt;
+
+                let mut syncer = arc_syncer.lock().await;
 
                 if let Err(error) = syncer.prepare().await {
                     utils::error_popup(&utils::error_chain_string(error));
@@ -310,13 +314,15 @@ impl App {
         // check if a syncer is already running
         if self.syncer.is_none() {
             // create and set syncer
-            self.syncer = Some(match sync::Syncer::new(sources, target) {
-                Ok(syncer) => syncer,
-                Err(error) => {
-                    sync_invalid_parameters_popup(&self.lang, error);
-                    return;
-                }
-            })
+            self.syncer = Some(Arc::new(Mutex::new(
+                match sync::Syncer::new(sources, target) {
+                    Ok(syncer) => syncer,
+                    Err(error) => {
+                        sync_invalid_parameters_popup(&self.lang, error);
+                        return;
+                    }
+                },
+            )))
         }
     }
 
