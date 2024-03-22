@@ -233,55 +233,55 @@ impl Application for App {
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        let mut subscriptions = Vec::new();
-
         // syncer subscription
         if self.syncer.is_some() {
-            struct Worker;
-            let mut syncer = self.syncer.clone().unwrap();
-            subscriptions.push(iced::subscription::channel(
-                std::any::TypeId::of::<Worker>(),
-                100,
-                |mut output| async move {
-                    use iced::futures::sink::SinkExt;
-
-                    if let Err(error) = syncer.prepare().await {
-                        utils::error_popup(&utils::error_chain_string(error));
-                    } else {
-                        loop {
-                            let syncer_result = syncer.async_next().await;
-                            match syncer_result {
-                                None => {
-                                    break;
-                                }
-                                Some(Ok(state)) => {
-                                    output.send(Message::SyncUpdate(state)).await.unwrap();
-                                }
-                                Some(Err(err)) => {
-                                    utils::error_popup(&utils::error_chain_string(err));
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    output.send(Message::FinishedSync).await.unwrap();
-
-                    loop {
-                        tokio::task::yield_now().await;
-                    }
-                },
-            ))
+            return self.create_sync_subscription();
         }
-
-        // return subscriptions
-        iced::Subscription::batch(subscriptions)
+        iced::Subscription::none()
     }
 }
 
 impl App {
     fn is_currently_syncing(&self) -> bool {
         self.syncer.is_some()
+    }
+
+    fn create_sync_subscription(&self) -> iced::Subscription<Message> {
+        struct Worker;
+        let mut syncer = self.syncer.clone().unwrap();
+        iced::subscription::channel(
+            std::any::TypeId::of::<Worker>(),
+            100,
+            |mut output| async move {
+                use iced::futures::sink::SinkExt;
+
+                if let Err(error) = syncer.prepare().await {
+                    utils::error_popup(&utils::error_chain_string(error));
+                } else {
+                    loop {
+                        let syncer_result = syncer.async_next().await;
+                        match syncer_result {
+                            None => {
+                                break;
+                            }
+                            Some(Ok(state)) => {
+                                output.send(Message::SyncUpdate(state)).await.unwrap();
+                            }
+                            Some(Err(err)) => {
+                                utils::error_popup(&utils::error_chain_string(err));
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                output.send(Message::FinishedSync).await.unwrap();
+
+                loop {
+                    tokio::task::yield_now().await;
+                }
+            },
+        )
     }
 
     fn start_sync(&mut self) {
