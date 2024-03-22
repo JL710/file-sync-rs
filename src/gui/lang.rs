@@ -124,3 +124,32 @@ pub fn last_sync(lang: &Lang) -> String {
     }
     .into()
 }
+
+pub fn app_update_finished_description(
+    lang: &Lang,
+    version: &str,
+    already_up_to_date: bool,
+) -> String {
+    match lang {
+        Lang::German => {
+            if already_up_to_date {
+                String::from("Das Programm ist bereits auf dem aktuellsten Stand.")
+            } else {
+                format!(
+                    "Update auf Version {} beendet. Das Programm kann neugestartet werden.",
+                    version
+                )
+            }
+        }
+        _ => {
+            if already_up_to_date {
+                String::from("The application is already up to date.")
+            } else {
+                format!(
+                    "Update to version {} finished. Application can be restarted.",
+                    version
+                )
+            }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 mod db;
 mod gui;
 mod syncing;
+mod update;
 use crate::gui::run;
 
 #[cfg(debug_assertions)]

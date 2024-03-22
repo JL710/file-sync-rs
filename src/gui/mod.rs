@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::db;
 use crate::syncing::{self, sync};
+use crate::update;
 
 mod lang;
 mod style;
@@ -35,6 +36,7 @@ enum Message {
     FinishedSync,
     SyncUpdate(sync::State),
     UpdateLastSync,
+    UpdateApplication,
 }
 
 impl Application for App {
@@ -92,10 +94,17 @@ impl Application for App {
 
     fn view(&self) -> Element<'_, Message> {
         let mut root_col = column![
-            row![widget::Container::new(
-                button("Language")
-                    .on_press(Message::SwitchLanguage)
-                    .style(
+            widget::Container::new(
+                row![
+                    button("Language").on_press(Message::SwitchLanguage).style(
+                        style::ButtonStyleSheet::new()
+                            .set_border(iced::Border::with_radius(10.0))
+                            .set_background(
+                                iced::Color::from_rgb8(207, 207, 207),
+                                iced::Color::from_rgb8(227, 227, 227)
+                            )
+                    ),
+                    button("Update").on_press(Message::UpdateApplication).style(
                         style::ButtonStyleSheet::new()
                             .set_border(iced::Border::with_radius(10.0))
                             .set_background(
@@ -103,12 +112,13 @@ impl Application for App {
                                 iced::Color::from_rgb8(227, 227, 227)
                             )
                     )
-                    .padding(5)
+                ]
+                .spacing(5)
             )
             .align_x(iced::alignment::Horizontal::Right)
             .width(iced::Length::Fill)
-            .padding(iced::Padding::from(10))]
-            .height(Length::Shrink),
+            .height(iced::Length::Shrink)
+            .padding(10),
             column![
                 views::source::view(self).map(Message::SourceView),
                 views::target::view(self).map(Message::TargetView),
@@ -230,6 +240,7 @@ impl Application for App {
                     utils::error_popup(&utils::error_chain_string(error));
                 }
             }
+            Message::UpdateApplication => self.update_application(),
         }
         Command::none()
     }
@@ -246,6 +257,24 @@ impl Application for App {
 impl App {
     fn is_currently_syncing(&self) -> bool {
         self.syncer.is_some()
+    }
+
+    fn update_application(&self) {
+        let result = update::update();
+        match result {
+            Ok(status) => {
+                rfd::MessageDialog::new()
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .set_title("Updated")
+                    .set_title(lang::app_update_finished_description(
+                        &self.lang,
+                        status.version(),
+                        status.uptodate(),
+                    ))
+                    .show();
+            }
+            Err(error) => utils::error_popup(&utils::error_chain_string(error)),
+        }
     }
 
     fn create_sync_subscription(&self) -> iced::Subscription<Message> {
