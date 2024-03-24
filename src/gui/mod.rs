@@ -62,7 +62,7 @@ impl Application for App {
             App {
                 lang,
                 last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
-                    match syncing::get_last_sync(target_path.into()) {
+                    match syncing::get_last_sync(target_path.into()).context("error while loading last sync state") {
                         Err(error) => {
                             let error_message = utils::error_chain_string(error);
                             utils::error_popup(&error_message);
