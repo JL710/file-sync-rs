@@ -46,7 +46,7 @@ pub struct LastSync {
     timestamp: DateTime,
     sources: Vec<String>,
     target: String,
-    version: String
+    version: String,
 }
 
 impl LastSync {
@@ -58,7 +58,7 @@ impl LastSync {
                 .map(|source| source.to_str().unwrap().to_owned())
                 .collect(),
             target: target.to_str().unwrap().to_owned(),
-            version: String::from("0.0.1")
+            version: String::from("0.0.1"),
         }
     }
 
