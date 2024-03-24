@@ -62,7 +62,9 @@ impl Application for App {
             App {
                 lang,
                 last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
-                    match syncing::get_last_sync(target_path.into()).context("error while loading last sync state") {
+                    match syncing::get_last_sync(target_path.into())
+                        .context("error while loading last sync state")
+                    {
                         Err(error) => {
                             let error_message = utils::error_chain_string(error);
                             utils::error_popup(&error_message);
@@ -96,6 +98,7 @@ impl Application for App {
         let mut root_col = column![
             widget::Container::new(
                 row![
+                    widget::text(self_update::cargo_crate_version!()),
                     button("Language").on_press(Message::SwitchLanguage).style(
                         style::ButtonStyleSheet::new()
                             .set_border(iced::Border::with_radius(10.0))
@@ -111,8 +114,9 @@ impl Application for App {
                                 iced::Color::from_rgb8(207, 207, 207),
                                 iced::Color::from_rgb8(227, 227, 227)
                             )
-                    )
+                    ),
                 ]
+                .align_items(iced::Alignment::Center)
                 .spacing(5)
             )
             .align_x(iced::alignment::Horizontal::Right)
