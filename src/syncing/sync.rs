@@ -35,12 +35,16 @@ impl Job {
     fn work(&self) -> Result<()> {
         if self.source.is_file() {
             if self.target.is_file() {
-                self.file_work()?;
+                self.file_work().context("failed to do file work")?;
             } else {
-                std::fs::copy(&self.source, &self.target).context(format!(
-                    "Could not copy file {:?} to {:?}",
-                    self.source, self.target
-                ))?;
+                std::fs::copy(&self.source, &self.target).with_context(|| {
+                    format!("Could not copy file {:?} to {:?}", self.source, self.target)
+                })?;
+                std::fs::set_permissions(
+                    &self.target,
+                    std::fs::metadata(&self.source)?.permissions(),
+                )
+                .context(format!("Could not set permissions for {:?}", self.target))?;
             }
         } else if !self.target.is_dir() {
             std::fs::create_dir(&self.target)
@@ -50,31 +54,40 @@ impl Job {
     }
 
     fn file_work(&self) -> Result<()> {
+        if std::fs::metadata(&self.target)?.permissions().readonly() {
+            let mut perms = std::fs::metadata(&self.target)?.permissions();
+            perms.set_readonly(false);
+            std::fs::set_permissions(&self.target, perms)
+                .context(format!("Could not set permissions for {:?}", self.target))?;
+        }
+
         let mut source_file = std::fs::OpenOptions::new()
             .read(true)
             .open(&self.source)
-            .context(format!("Could not open file {:?}", self.source))?;
+            .context(format!("Could not open source file {:?}", self.source))?;
         let mut target_file = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
             .open(&self.target)
-            .context(format!("Could not open file {:?}", self.target))?;
+            .context(format!("Could not open target file {:?}", self.target))?;
 
-        let source_file_metadata = source_file
-            .metadata()
-            .context(format!("Could query metadata of file {:?}", self.source))?;
-        let target_file_metadata = target_file
-            .metadata()
-            .context(format!("Could query metadata of file {:?}", self.source))?;
+        let source_file_metadata = source_file.metadata().context(format!(
+            "Could query metadata of source file {:?}",
+            self.source
+        ))?;
+        let target_file_metadata = target_file.metadata().context(format!(
+            "Could query metadata of target file {:?}",
+            self.source
+        ))?;
 
         // change permissions if differ
         if source_file_metadata.permissions() != target_file_metadata.permissions() {
-            target_file
-                .set_permissions(source_file_metadata.permissions())
-                .context(format!(
-                    "Could not set target file metadata for {:?}",
-                    self.target
-                ))?;
+            let mut perms = source_file_metadata.permissions();
+            perms.set_readonly(false);
+            target_file.set_permissions(perms).context(format!(
+                "Could not set target file metadata for {:?}",
+                self.target
+            ))?;
         }
 
         // change length of the file if differ
@@ -137,7 +150,11 @@ impl Syncer {
     fn resolve_dir(&mut self, job: &Job) -> Result<()> {
         self.jobs_todo.push(job.clone());
         for i in std::fs::read_dir(&job.source)? {
-            let entry = i?.path();
+            let i = i?;
+            if !i.file_type()?.is_file() && !i.file_type()?.is_dir() {
+                continue;
+            }
+            let entry = i.path();
             let new_job = Job {
                 target: job.target.join(entry.file_name().unwrap()),
                 source: entry,
@@ -145,7 +162,8 @@ impl Syncer {
             if new_job.source.is_file() {
                 self.jobs_todo.push(new_job);
             } else {
-                self.resolve_dir(&new_job)?;
+                self.resolve_dir(&new_job)
+                    .with_context(|| format!("failed to resolve dir for job {:?}", new_job))?;
             }
         }
         Ok(())
@@ -158,7 +176,8 @@ impl Syncer {
             if job.source.is_file() {
                 self.jobs_todo.push(job)
             } else {
-                self.resolve_dir(&job)?;
+                self.resolve_dir(&job)
+                    .with_context(|| format!("failed to resolve dir for job {:?}", job))?;
             }
         }
         self.jobs_todo.reverse();
