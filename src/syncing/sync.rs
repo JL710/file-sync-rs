@@ -134,10 +134,10 @@ impl Syncer {
         })
     }
 
-    fn resolve_dir(&mut self, job: &Job) {
+    fn resolve_dir(&mut self, job: &Job) -> Result<()> {
         self.jobs_todo.push(job.clone());
-        for i in std::fs::read_dir(&job.source).unwrap() {
-            let entry = i.unwrap().path();
+        for i in std::fs::read_dir(&job.source)? {
+            let entry = i?.path();
             let new_job = Job {
                 target: job.target.join(entry.file_name().unwrap()),
                 source: entry,
@@ -145,22 +145,24 @@ impl Syncer {
             if new_job.source.is_file() {
                 self.jobs_todo.push(new_job);
             } else {
-                self.resolve_dir(&new_job);
+                self.resolve_dir(&new_job)?;
             }
         }
+        Ok(())
     }
 
-    fn resolve(&mut self) {
+    fn resolve(&mut self) -> Result<()> {
         let jobs = self.jobs_todo.clone();
         self.jobs_todo.clear();
         for job in jobs {
             if job.source.is_file() {
                 self.jobs_todo.push(job)
             } else {
-                self.resolve_dir(&job);
+                self.resolve_dir(&job)?;
             }
         }
         self.jobs_todo.reverse();
+        Ok(())
     }
 
     pub async fn prepare(&mut self) -> Result<()> {
@@ -179,7 +181,7 @@ impl Syncer {
         .context("Updating the last sync file failed")?;
 
         // resolve dirs
-        tokio::task::block_in_place(move || self.resolve());
+        tokio::task::block_in_place(move || self.resolve())?;
 
         Ok(())
     }
