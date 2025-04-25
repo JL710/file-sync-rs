@@ -6,6 +6,7 @@ pub fn update() -> Result<self_update::Status> {
         .repo_owner("jl710")
         .repo_name("file-sync-rs")
         .bin_name("file-sync-rs")
+        .no_confirm(true)
         .show_download_progress(false)
         .current_version(cargo_crate_version!())
         .build()?
