@@ -31,16 +31,17 @@ impl AppSettings {
         connection
             .execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
-                (key, value),
+                [key, value],
             )
             .context("query failed")?;
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn del_setting(&self, key: &str) -> Result<()> {
         let connection = self.connect()?;
         connection
-            .execute("DELETE FROM settings WHERE key=?1", (key,))
+            .execute("DELETE FROM settings WHERE key=?1", [key])
             .context("query failed")?;
         Ok(())
     }
@@ -51,7 +52,7 @@ impl AppSettings {
             .prepare("SELECT key, value FROM settings WHERE key=?1")
             .context("failed to prepare statement")?;
         let result = smtp
-            .query_row((key,), |x| Ok(x.get::<usize, String>(1).unwrap()))
+            .query_row([key], |x| Ok(x.get::<usize, String>(1).unwrap()))
             .optional()
             .context("failed to query statement")?;
         Ok(result)
@@ -64,7 +65,7 @@ impl AppSettings {
                 "
             INSERT INTO sources (path) VALUES (?1);
             ",
-                (path.to_str().unwrap(),),
+                [path.to_str().unwrap()],
             )
             .context("failed to execute query")?;
         Ok(())
@@ -75,7 +76,7 @@ impl AppSettings {
         connection
             .execute(
                 "DELETE FROM sources WHERE path = ?1",
-                (path.to_str().unwrap(),),
+                [path.to_str().unwrap()],
             )
             .context("failed to execute query")?;
         Ok(())
@@ -108,7 +109,7 @@ impl DBManager for AppSettings {
                 path TEXT NOT NULL
             );
             ",
-            (),
+            [],
         )?;
 
         connection.execute(
@@ -118,7 +119,7 @@ impl DBManager for AppSettings {
                 value TEXT NOT NULL
             )
             ",
-            (),
+            [],
         )?;
 
         Ok(())
