@@ -35,13 +35,7 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
             }),
     );
 
-    if let Some(target) = match app.db.get_setting("target_path") {
-        Ok(value) => value,
-        Err(error) => {
-            utils::error_popup(&utils::error_chain_string(error));
-            None
-        }
-    } {
+    if let Some(target) = app.db.get_setting("target_path").unwrap_or(None) {
         col = col.push(text(target));
     }
 
@@ -71,18 +65,25 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-pub(in super::super) fn update(app: &mut App, message: Message) {
+pub(in super::super) fn update(app: &mut App, message: Message) -> iced::Task<Message> {
     match message {
         Message::ChangeTarget => {
             if let Some(path) = rfd::FileDialog::new().pick_folder() {
                 if let Err(error) = app.db.set_setting("target_path", path.to_str().unwrap()) {
-                    utils::error_popup(&utils::error_chain_string(error));
+                    return iced::Task::future(utils::async_error_popup(
+                        &utils::error_chain_string(error),
+                    ))
+                    .discard();
                 }
             }
 
             if let Err(error) = app.reload_last_sync() {
-                utils::error_popup(&utils::error_chain_string(error));
+                return iced::Task::future(utils::async_error_popup(&utils::error_chain_string(
+                    error,
+                )))
+                .discard();
             }
         }
     }
+    iced::Task::none()
 }

@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use iced::widget::{self, button, column, row};
 use iced::{Element, Length, Task};
 use std::path::PathBuf;
+use std::sync::Arc;
+use utils::async_error_popup;
 
 use crate::db;
 use crate::syncing::{self, sync};
@@ -29,6 +31,7 @@ enum Message {
     SyncUpdate(sync::State),
     UpdateLastSync,
     UpdateApplication,
+    Error(Arc<anyhow::Error>),
 }
 
 impl App {
@@ -45,23 +48,25 @@ impl App {
             _ => lang::Lang::English,
         };
 
+        let last_sync = if let Ok(Some(target_path)) = db.get_setting("target_path") {
+            match syncing::get_last_sync(target_path.into())
+                .context("error while loading last sync state")
+            {
+                Err(error) => {
+                    let error_message = utils::error_chain_string(error);
+                    utils::error_popup(&error_message);
+                    panic!("{}", error_message);
+                }
+                Ok(last_sync) => last_sync,
+            }
+        } else {
+            None
+        };
+
         (
             App {
                 lang,
-                last_sync: if let Ok(Some(target_path)) = db.get_setting("target_path") {
-                    match syncing::get_last_sync(target_path.into())
-                        .context("error while loading last sync state")
-                    {
-                        Err(error) => {
-                            let error_message = utils::error_chain_string(error);
-                            utils::error_popup(&error_message);
-                            panic!("{}", error_message);
-                        }
-                        Ok(last_sync) => last_sync,
-                    }
-                } else {
-                    None
-                },
+                last_sync,
                 db,
                 currently_syncing: false,
                 syncer_state: None,
@@ -185,6 +190,12 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Error(err) => {
+                return iced::Task::future(async_error_popup(&utils::error_chain_string(
+                    Arc::into_inner(err).unwrap(),
+                )))
+                .discard();
+            }
             Message::SwitchLanguage => {
                 let new_lang = match self.lang {
                     lang::Lang::English => lang::Lang::German,
@@ -196,23 +207,27 @@ impl App {
                 self.lang = new_lang;
             }
             Message::TargetView(view_message) => {
-                views::target::update(self, view_message);
+                return views::target::update(self, view_message).map(Message::TargetView);
             }
             Message::SourceView(view_message) => {
-                views::source::update(self, view_message);
+                return views::source::update(self, view_message).map(Message::SourceView);
             }
             Message::StartSync => {
                 // check if target is set
                 let target = match match self.db.get_setting("target_path") {
                     Ok(value) => value,
                     Err(error) => {
-                        utils::error_popup(&utils::error_chain_string(error));
-                        return Task::none();
+                        return Task::future(utils::async_error_popup(&utils::error_chain_string(
+                            error,
+                        )))
+                        .discard();
                     }
                 } {
                     None => {
-                        utils::error_popup(&lang::target_does_not_exist_error(&self.lang));
-                        return Task::none();
+                        return Task::future(utils::async_error_popup(
+                            &lang::target_does_not_exist_error(&self.lang),
+                        ))
+                        .discard();
                     }
                     Some(target_string) => PathBuf::from(target_string),
                 };
@@ -220,8 +235,10 @@ impl App {
                 // check if sources are available
                 let sources = self.db.get_sources().unwrap();
                 if sources.is_empty() {
-                    utils::error_popup(&lang::sources_does_not_exist_error(&self.lang));
-                    return Task::none();
+                    return Task::future(utils::async_error_popup(
+                        &lang::sources_does_not_exist_error(&self.lang),
+                    ))
+                    .discard();
                 }
 
                 // check if a syncer is already running
@@ -231,8 +248,7 @@ impl App {
                     return create_sync_task(match sync::Syncer::new(sources, target) {
                         Ok(syncer) => syncer,
                         Err(error) => {
-                            sync_invalid_parameters_popup(&self.lang, error);
-                            return Task::none();
+                            return sync_invalid_parameters_popup(&self.lang, error);
                         }
                     });
                 }
@@ -241,16 +257,16 @@ impl App {
                 self.currently_syncing = false;
                 self.syncer_state = None;
                 if let Err(error) = self.reload_last_sync() {
-                    utils::error_popup(&utils::error_chain_string(error));
+                    return Task::done(Message::Error(error.into()));
                 }
             }
             Message::SyncUpdate(state) => self.syncer_state = Some(state),
             Message::UpdateLastSync => {
                 if let Err(error) = self.reload_last_sync() {
-                    utils::error_popup(&utils::error_chain_string(error));
+                    return Task::done(Message::Error(error.into()));
                 }
             }
-            Message::UpdateApplication => self.update_application(),
+            Message::UpdateApplication => return self.update_application(),
         }
         Task::none()
     }
@@ -259,11 +275,11 @@ impl App {
         self.currently_syncing
     }
 
-    fn update_application(&self) {
+    fn update_application(&self) -> iced::Task<Message> {
         let result = update::update();
         match result {
-            Ok(status) => {
-                rfd::MessageDialog::new()
+            Ok(status) => iced::Task::future(
+                rfd::AsyncMessageDialog::new()
                     .set_buttons(rfd::MessageButtons::Ok)
                     .set_title("Updated")
                     .set_description(lang::app_update_finished_description(
@@ -271,9 +287,13 @@ impl App {
                         status.version(),
                         status.uptodate(),
                     ))
-                    .show();
+                    .show(),
+            )
+            .discard(),
+            Err(error) => {
+                iced::Task::future(utils::async_error_popup(&utils::error_chain_string(error)))
+                    .discard()
             }
-            Err(error) => utils::error_popup(&utils::error_chain_string(error)),
         }
     }
 
@@ -294,7 +314,7 @@ fn create_sync_task(mut syncer: sync::Syncer) -> Task<Message> {
             use iced::futures::sink::SinkExt;
 
             if let Err(error) = syncer.prepare().await {
-                utils::error_popup(&utils::error_chain_string(error));
+                output.send(Message::Error(error.into())).await.unwrap();
             } else {
                 loop {
                     let syncer_result = syncer.async_next().await;
@@ -306,7 +326,7 @@ fn create_sync_task(mut syncer: sync::Syncer) -> Task<Message> {
                             output.send(Message::SyncUpdate(state)).await.unwrap();
                         }
                         Some(Err(err)) => {
-                            utils::error_popup(&utils::error_chain_string(err));
+                            output.send(Message::Error(err.into())).await.unwrap();
                             break;
                         }
                     }
@@ -323,20 +343,25 @@ fn create_sync_task(mut syncer: sync::Syncer) -> Task<Message> {
     )
 }
 
-fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerParameters) {
+fn sync_invalid_parameters_popup(
+    lang: &lang::Lang,
+    error: sync::InvalidSyncerParameters,
+) -> iced::Task<Message> {
     match error {
         sync::InvalidSyncerParameters::SourceDoesNotExist(not_existing_source) => {
-            utils::error_popup(&lang::source_does_not_exist_error(
-                lang,
-                &not_existing_source,
-            ));
+            iced::Task::future(utils::async_error_popup(
+                &lang::source_does_not_exist_error(lang, &not_existing_source),
+            ))
+            .discard()
         }
-        sync::InvalidSyncerParameters::SourceInTarget(source) => {
-            utils::error_popup(&lang::source_in_target_error(lang, &source));
-        }
-        sync::InvalidSyncerParameters::TargetInSource(source) => {
-            utils::error_popup(&lang::target_in_source_error(lang, &source));
-        }
+        sync::InvalidSyncerParameters::SourceInTarget(source) => iced::Task::future(
+            utils::async_error_popup(&lang::source_in_target_error(lang, &source)),
+        )
+        .discard(),
+        sync::InvalidSyncerParameters::TargetInSource(source) => iced::Task::future(
+            utils::async_error_popup(&lang::target_in_source_error(lang, &source)),
+        )
+        .discard(),
     }
 }
 
