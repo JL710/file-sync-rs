@@ -266,7 +266,7 @@ impl App {
                 rfd::MessageDialog::new()
                     .set_buttons(rfd::MessageButtons::Ok)
                     .set_title("Updated")
-                    .set_title(lang::app_update_finished_description(
+                    .set_description(lang::app_update_finished_description(
                         &self.lang,
                         status.version(),
                         status.uptodate(),
