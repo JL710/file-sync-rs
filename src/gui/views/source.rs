@@ -79,31 +79,33 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
     .into()
 }
 
-pub(in super::super) fn update(app: &mut App, message: Message) {
+pub(in super::super) fn update(app: &mut App, message: Message) -> iced::Task<Message> {
     match message {
         Message::AddFile => {
-            add_files(app);
+            if let Err(error) = add_files(app) {
+                return iced::Task::future(utils::async_error_popup(&utils::error_chain_string(error)))
+                    .discard();
+            }
         }
         Message::AddDirectory => {
-            add_dirs(app);
+            if let Err(error) = add_dirs(app) {
+                return iced::Task::future(utils::async_error_popup(&utils::error_chain_string(error)))
+                    .discard();
+            }
         }
         Message::DeleteSource(path) => {
             if let Err(error) = app.db.remove_source(path) {
-                utils::error_popup(&utils::error_chain_string(error));
+                return iced::Task::future(utils::async_error_popup(&utils::error_chain_string(error)))
+                    .discard();
             }
         }
     }
+    iced::Task::none()
 }
 
 fn generate_source_list(app: &App) -> Element<'_, Message> {
     let mut col = Column::new();
-    let paths = match app.db.get_sources() {
-        Ok(value) => value,
-        Err(error) => {
-            utils::error_popup(&utils::error_chain_string(error));
-            Vec::new()
-        }
-    };
+    let paths = app.db.get_sources().unwrap(); // FIXME: this unwrap should not be here
     for path in paths {
         col = col.push(
             row![
@@ -153,46 +155,35 @@ fn button_style(theme: &iced::Theme, status: widget::button::Status) -> widget::
     style
 }
 
-fn add_files(app: &App) {
+fn add_files(app: &App) -> anyhow::Result<()> {
     if let Some(paths) = rfd::FileDialog::new().pick_files() {
-        add_source(app, paths);
+        add_source(app, paths)?;
     }
+    Ok(())
 }
 
-fn add_dirs(app: &App) {
+fn add_dirs(app: &App) -> anyhow::Result<()> {
     if let Some(paths) = rfd::FileDialog::new().pick_folders() {
-        add_source(app, paths);
+        add_source(app, paths)?;
     }
+    Ok(())
 }
 
-fn add_source(app: &App, paths: Vec<PathBuf>) {
-    let existing_paths = match app.db.get_sources() {
-        Ok(value) => value,
-        Err(error) => {
-            utils::error_popup(&utils::error_chain_string(error));
-            return;
-        }
-    };
-    'path_loop: for path in paths {
+fn add_source(app: &App, paths: Vec<PathBuf>) -> anyhow::Result<()> {
+    let existing_paths = app.db.get_sources()?;
+    for path in paths {
         // check if exact path already exists
         if existing_paths.contains(&path) {
-            utils::error_popup(&lang::source_exists_error(&app.lang, path));
-            continue;
+            anyhow::bail!(lang::source_exists_error(&app.lang, path));
         }
         // check if paths overlap
         for existing_path in &existing_paths {
             if existing_path.starts_with(&path) || path.starts_with(existing_path) {
-                utils::error_popup(&lang::sources_overlap_error(
-                    &app.lang,
-                    &path,
-                    existing_path,
-                ));
-                continue 'path_loop;
+                anyhow::bail!(lang::sources_overlap_error(&app.lang, &path, existing_path,));
             }
         }
         // add source
-        if let Err(error) = app.db.add_source(path) {
-            utils::error_popup(&utils::error_chain_string(error));
-        }
+        app.db.add_source(path)?
     }
+    Ok(())
 }
