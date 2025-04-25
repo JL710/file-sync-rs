@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use iced::widget::{self, button, column, row, scrollable, text, Column};
+use iced::widget::{self, Column, button, column, row, scrollable, text};
 use iced::{Element, Length};
 
-use super::super::{lang, style, utils, App};
+use super::super::{App, lang, utils};
 
 #[derive(Debug, Clone)]
 pub(in super::super) enum Message {
@@ -22,7 +22,9 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                             &include_bytes!("../assets/file-earmark-arrow-down.svg")[..]
                         )
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255))
+                    .style(|_, _| widget::svg::Style {
+                        color: Some(iced::Color::WHITE)
+                    })
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -32,16 +34,15 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddFile)
                     }
                 })
-                .style(style::ButtonStyleSheet::new().set_background(
-                    iced::Color::from_rgb8(161, 59, 59),
-                    iced::Color::from_rgb8(196, 107, 107)
-                )),
+                .style(button_style),
                 text(lang::source_block_label(&app.lang)),
                 button(
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/folder-plus.svg")[..])
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255))
+                    .style(|_, _| widget::svg::Style {
+                        color: Some(iced::Color::WHITE)
+                    })
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -51,35 +52,30 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                         Some(Message::AddDirectory)
                     }
                 })
-                .style(style::ButtonStyleSheet::new().set_background(
-                    iced::Color::from_rgb8(161, 59, 59),
-                    iced::Color::from_rgb8(196, 107, 107)
-                )),
+                .style(button_style),
             ]
             .spacing(10),
             widget::Container::new(
                 scrollable(column![generate_source_list(app)]).width(Length::Fill)
             )
-            .center_y(),
+            .align_x(iced::Center),
         ]
         .width(Length::Fill)
-        .align_items(iced::Alignment::Center),
+        .align_x(iced::Alignment::Center),
     )
     .width(Length::FillPortion(1))
     .height(Length::Fill)
     .padding(iced::Padding::from(10.0))
-    .style(
-        style::ContainerStyleSheet::new()
-            .background(Some(iced::Background::Color(iced::Color::from_rgb8(
-                183, 79, 79,
-            ))))
-            .border_radius(iced::Border::with_radius(20.0))
-            .shadow(iced::Shadow {
-                color: iced::Color::from_rgb8(0, 0, 0),
-                offset: iced::Vector::new(0.0, 0.0),
-                blur_radius: 8.0,
-            }),
-    )
+    .style(|_| widget::container::Style {
+        background: Some(iced::Background::Color(iced::Color::from_rgb8(183, 79, 79))),
+        border: iced::Border::default().rounded(20.0),
+        shadow: iced::Shadow {
+            color: iced::Color::from_rgb8(0, 0, 0),
+            offset: iced::Vector::new(0.0, 0.0),
+            blur_radius: 8.0,
+        },
+        text_color: None,
+    })
     .into()
 }
 
@@ -112,11 +108,11 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
         col = col.push(
             row![
                 scrollable(
-                    widget::container::Container::new(text(path.to_str().unwrap()))
+                    widget::container::Container::new(text(path.to_str().unwrap().to_string()))
                         .padding(iced::Padding::from(10))
                 )
                 .direction(widget::scrollable::Direction::Horizontal(
-                    widget::scrollable::Properties::new()
+                    widget::scrollable::Scrollbar::new()
                 ))
                 .width(Length::FillPortion(5)),
                 widget::Space::with_width(10),
@@ -124,7 +120,9 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                     widget::svg::Svg::new(widget::svg::Handle::from_memory(
                         std::borrow::Cow::from(&include_bytes!("../assets/trash-fill.svg")[..])
                     ))
-                    .style(style::SvgStyleSheet::new(255, 255, 255))
+                    .style(|_, _| widget::svg::Style {
+                        color: Some(iced::Color::WHITE)
+                    })
                     .width(Length::Shrink)
                 )
                 .on_press_maybe({
@@ -134,20 +132,25 @@ fn generate_source_list(app: &App) -> Element<'_, Message> {
                         Some(Message::DeleteSource(path))
                     }
                 })
-                .style(
-                    style::ButtonStyleSheet::new()
-                        .set_background(
-                            iced::Color::from_rgb8(161, 59, 59),
-                            iced::Color::from_rgb8(196, 107, 107)
-                        )
-                        .set_border(iced::Border::with_radius(30.0))
-                )
+                .style(button_style)
             ]
-            .align_items(iced::Alignment::Center),
+            .align_y(iced::Alignment::Center),
         )
     }
 
     col.into()
+}
+
+fn button_style(theme: &iced::Theme, status: widget::button::Status) -> widget::button::Style {
+    let mut style = widget::button::primary(theme, status);
+    if status == widget::button::Status::Active {
+        style.background = Some(iced::Background::Color(iced::Color::from_rgb8(161, 59, 59)))
+    } else {
+        style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+            196, 107, 107,
+        )))
+    }
+    style
 }
 
 fn add_files(app: &App) {

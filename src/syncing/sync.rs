@@ -56,6 +56,7 @@ impl Job {
     fn file_work(&self) -> Result<()> {
         if std::fs::metadata(&self.target)?.permissions().readonly() {
             let mut perms = std::fs::metadata(&self.target)?.permissions();
+            #[allow(clippy::permissions_set_readonly_false)]
             perms.set_readonly(false);
             std::fs::set_permissions(&self.target, perms)
                 .context(format!("Could not set permissions for {:?}", self.target))?;
@@ -83,6 +84,7 @@ impl Job {
         // change permissions if differ
         if source_file_metadata.permissions() != target_file_metadata.permissions() {
             let mut perms = source_file_metadata.permissions();
+            #[allow(clippy::permissions_set_readonly_false)]
             perms.set_readonly(false);
             target_file.set_permissions(perms).context(format!(
                 "Could not set target file metadata for {:?}",

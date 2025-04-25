@@ -1,30 +1,22 @@
 use anyhow::{Context, Result};
-use iced::settings::Settings;
 use iced::widget::{self, button, column, row};
-use iced::{executor, Application, Command, Element, Length, Theme};
+use iced::{Element, Length, Task};
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::db;
 use crate::syncing::{self, sync};
 use crate::update;
 
 mod lang;
-mod style;
 pub mod utils;
 mod views;
-
-struct Flags {
-    db: db::AppSettings,
-}
 
 struct App {
     lang: lang::Lang,
     db: db::AppSettings,
     syncer_state: Option<sync::State>,
     last_sync: Option<syncing::LastSync>,
-    syncer: Option<Arc<Mutex<sync::Syncer>>>,
+    currently_syncing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -39,14 +31,9 @@ enum Message {
     UpdateApplication,
 }
 
-impl Application for App {
-    type Executor = executor::Default;
-    type Message = Message;
-    type Theme = Theme;
-    type Flags = Flags;
-
-    fn new(flags: Flags) -> (Self, Command<Self::Message>) {
-        let lang = match match flags.db.get_setting("Lang") {
+impl App {
+    fn new(db: crate::db::AppSettings) -> (Self, Task<Message>) {
+        let lang = match match db.get_setting("Lang") {
             Ok(value) => value,
             Err(error) => {
                 let error_string = utils::error_chain_string(error);
@@ -61,7 +48,7 @@ impl Application for App {
         (
             App {
                 lang,
-                last_sync: if let Ok(Some(target_path)) = flags.db.get_setting("target_path") {
+                last_sync: if let Ok(Some(target_path)) = db.get_setting("target_path") {
                     match syncing::get_last_sync(target_path.into())
                         .context("error while loading last sync state")
                     {
@@ -75,23 +62,12 @@ impl Application for App {
                 } else {
                     None
                 },
-                db: flags.db,
-                syncer: None,
+                db,
+                currently_syncing: false,
                 syncer_state: None,
             },
-            iced::command::channel(100, |mut channel| async move {
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                    channel
-                        .try_send(Message::UpdateLastSync)
-                        .expect("Could not send last sync message");
-                }
-            }),
+            Task::none(),
         )
-    }
-
-    fn title(&self) -> String {
-        String::from("File Sync RS")
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -99,24 +75,14 @@ impl Application for App {
             widget::Container::new(
                 row![
                     widget::text(self_update::cargo_crate_version!()),
-                    button("Language").on_press(Message::SwitchLanguage).style(
-                        style::ButtonStyleSheet::new()
-                            .set_border(iced::Border::with_radius(10.0))
-                            .set_background(
-                                iced::Color::from_rgb8(207, 207, 207),
-                                iced::Color::from_rgb8(227, 227, 227)
-                            )
-                    ),
-                    button("Update").on_press(Message::UpdateApplication).style(
-                        style::ButtonStyleSheet::new()
-                            .set_border(iced::Border::with_radius(10.0))
-                            .set_background(
-                                iced::Color::from_rgb8(207, 207, 207),
-                                iced::Color::from_rgb8(227, 227, 227)
-                            )
-                    ),
+                    button("Language")
+                        .on_press(Message::SwitchLanguage)
+                        .style(gray_button),
+                    button("Update")
+                        .on_press(Message::UpdateApplication)
+                        .style(gray_button),
                 ]
-                .align_items(iced::Alignment::Center)
+                .align_y(iced::Alignment::Center)
                 .spacing(5)
             )
             .align_x(iced::alignment::Horizontal::Right)
@@ -135,35 +101,42 @@ impl Application for App {
                                     &include_bytes!("./assets/file-earmark-play.svg")[..]
                                 )
                             ))
-                            .style(style::SvgStyleSheet::new(255, 255, 255))
+                            .style(|_, _| widget::svg::Style {
+                                color: Some(iced::Color::WHITE)
+                            })
                             .width(iced::Length::Shrink)
                         ]
-                        .align_items(iced::Alignment::Center)
+                        .align_y(iced::Alignment::Center)
                         .spacing(10)
                     )
                     .align_x(iced::alignment::Horizontal::Center)
                     .width(Length::Fill)
                 )
                 .on_press_maybe({
-                    if self.is_currently_syncing() {
+                    if self.currently_syncing {
                         None
                     } else {
                         Some(Message::StartSync)
                     }
                 })
-                .style(
-                    style::ButtonStyleSheet::new()
-                        .set_background(
-                            iced::Color::from_rgb8(50, 200, 50),
-                            iced::Color::from_rgb8(150, 200, 150),
-                        )
-                        .set_border(iced::Border::with_radius(20.0))
-                        .shadow(iced::Shadow {
-                            color: iced::Color::from_rgb8(0, 0, 0),
-                            offset: iced::Vector::new(0.0, 0.0),
-                            blur_radius: 8.0
-                        }),
-                )
+                .style(|theme, status| {
+                    let mut style = widget::button::primary(theme, status);
+                    if status == widget::button::Status::Active {
+                        style.background =
+                            Some(iced::Background::Color(iced::Color::from_rgb8(50, 200, 50)))
+                    } else {
+                        style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+                            150, 200, 150,
+                        )))
+                    }
+                    style.border.radius = iced::border::Radius::new(20.0);
+                    style.shadow = iced::Shadow {
+                        color: iced::Color::from_rgb8(0, 0, 0),
+                        offset: iced::Vector::new(0.0, 0.0),
+                        blur_radius: 8.0,
+                    };
+                    style
+                })
                 .padding(15)
                 .width(Length::Fill),
             ]
@@ -173,7 +146,7 @@ impl Application for App {
             .padding(iced::Padding::from(10.0)),
         ];
 
-        if self.syncer.is_some() {
+        if self.currently_syncing {
             root_col = root_col.push(
                 column![
                     widget::text(format!(
@@ -203,14 +176,14 @@ impl Application for App {
                     )
                     .height(Length::Fixed(10.0)),
                 ]
-                .align_items(iced::Alignment::Center),
+                .align_x(iced::Alignment::Center),
             )
         }
 
         root_col.into()
     }
 
-    fn update(&mut self, message: Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::SwitchLanguage => {
                 let new_lang = match self.lang {
@@ -229,10 +202,43 @@ impl Application for App {
                 views::source::update(self, view_message);
             }
             Message::StartSync => {
-                self.start_sync();
+                // check if target is set
+                let target = match match self.db.get_setting("target_path") {
+                    Ok(value) => value,
+                    Err(error) => {
+                        utils::error_popup(&utils::error_chain_string(error));
+                        return Task::none();
+                    }
+                } {
+                    None => {
+                        utils::error_popup(&lang::target_does_not_exist_error(&self.lang));
+                        return Task::none();
+                    }
+                    Some(target_string) => PathBuf::from(target_string),
+                };
+
+                // check if sources are available
+                let sources = self.db.get_sources().unwrap();
+                if sources.is_empty() {
+                    utils::error_popup(&lang::sources_does_not_exist_error(&self.lang));
+                    return Task::none();
+                }
+
+                // check if a syncer is already running
+                if !self.currently_syncing {
+                    // create and set syncer
+                    self.currently_syncing = true;
+                    return create_sync_task(match sync::Syncer::new(sources, target) {
+                        Ok(syncer) => syncer,
+                        Err(error) => {
+                            sync_invalid_parameters_popup(&self.lang, error);
+                            return Task::none();
+                        }
+                    });
+                }
             }
             Message::FinishedSync => {
-                self.syncer = None;
+                self.currently_syncing = false;
                 self.syncer_state = None;
                 if let Err(error) = self.reload_last_sync() {
                     utils::error_popup(&utils::error_chain_string(error));
@@ -246,21 +252,11 @@ impl Application for App {
             }
             Message::UpdateApplication => self.update_application(),
         }
-        Command::none()
+        Task::none()
     }
 
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
-        // syncer subscription
-        if self.syncer.is_some() {
-            return self.create_sync_subscription();
-        }
-        iced::Subscription::none()
-    }
-}
-
-impl App {
     fn is_currently_syncing(&self) -> bool {
-        self.syncer.is_some()
+        self.currently_syncing
     }
 
     fn update_application(&self) {
@@ -281,84 +277,6 @@ impl App {
         }
     }
 
-    fn create_sync_subscription(&self) -> iced::Subscription<Message> {
-        struct Worker;
-        let arc_syncer = self.syncer.clone().unwrap();
-        iced::subscription::channel(
-            std::any::TypeId::of::<Worker>(),
-            100,
-            |mut output| async move {
-                use iced::futures::sink::SinkExt;
-
-                let mut syncer = arc_syncer.lock().await;
-
-                if let Err(error) = syncer.prepare().await {
-                    utils::error_popup(&utils::error_chain_string(error));
-                } else {
-                    loop {
-                        let syncer_result = syncer.async_next().await;
-                        match syncer_result {
-                            None => {
-                                break;
-                            }
-                            Some(Ok(state)) => {
-                                output.send(Message::SyncUpdate(state)).await.unwrap();
-                            }
-                            Some(Err(err)) => {
-                                utils::error_popup(&utils::error_chain_string(err));
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                output.send(Message::FinishedSync).await.unwrap();
-
-                loop {
-                    tokio::task::yield_now().await;
-                }
-            },
-        )
-    }
-
-    fn start_sync(&mut self) {
-        // check if target is set
-        let target = match match self.db.get_setting("target_path") {
-            Ok(value) => value,
-            Err(error) => {
-                utils::error_popup(&utils::error_chain_string(error));
-                return;
-            }
-        } {
-            None => {
-                utils::error_popup(&lang::target_does_not_exist_error(&self.lang));
-                return;
-            }
-            Some(target_string) => PathBuf::from(target_string),
-        };
-
-        // check if sources are available
-        let sources = self.db.get_sources().unwrap();
-        if sources.is_empty() {
-            utils::error_popup(&lang::sources_does_not_exist_error(&self.lang));
-            return;
-        }
-
-        // check if a syncer is already running
-        if self.syncer.is_none() {
-            // create and set syncer
-            self.syncer = Some(Arc::new(Mutex::new(
-                match sync::Syncer::new(sources, target) {
-                    Ok(syncer) => syncer,
-                    Err(error) => {
-                        sync_invalid_parameters_popup(&self.lang, error);
-                        return;
-                    }
-                },
-            )))
-        }
-    }
-
     fn reload_last_sync(&mut self) -> Result<()> {
         self.last_sync = if let Ok(Some(target_path)) = self.db.get_setting("target_path") {
             syncing::get_last_sync(target_path.into()).context("failed to load setting from db")?
@@ -368,6 +286,41 @@ impl App {
 
         Ok(())
     }
+}
+
+fn create_sync_task(mut syncer: sync::Syncer) -> Task<Message> {
+    Task::run(
+        iced::stream::channel(100, |mut output| async move {
+            use iced::futures::sink::SinkExt;
+
+            if let Err(error) = syncer.prepare().await {
+                utils::error_popup(&utils::error_chain_string(error));
+            } else {
+                loop {
+                    let syncer_result = syncer.async_next().await;
+                    match syncer_result {
+                        None => {
+                            break;
+                        }
+                        Some(Ok(state)) => {
+                            output.send(Message::SyncUpdate(state)).await.unwrap();
+                        }
+                        Some(Err(err)) => {
+                            utils::error_popup(&utils::error_chain_string(err));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            output.send(Message::FinishedSync).await.unwrap();
+
+            loop {
+                tokio::task::yield_now().await;
+            }
+        }),
+        |x| x,
+    )
 }
 
 fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerParameters) {
@@ -388,5 +341,26 @@ fn sync_invalid_parameters_popup(lang: &lang::Lang, error: sync::InvalidSyncerPa
 }
 
 pub fn run(db: db::AppSettings) {
-    App::run(Settings::with_flags(Flags { db })).unwrap();
+    iced::application("File Sync RS", App::update, App::view)
+        .subscription(|_| {
+            iced::time::every(std::time::Duration::from_secs(1)).map(|_| Message::UpdateLastSync)
+        })
+        .theme(|_| iced::Theme::Light)
+        .run_with(move || App::new(db))
+        .unwrap();
+}
+
+fn gray_button(theme: &iced::Theme, status: widget::button::Status) -> widget::button::Style {
+    let mut style = widget::button::primary(theme, status);
+    if status == widget::button::Status::Active {
+        style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+            207, 207, 207,
+        )));
+    } else {
+        style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+            227, 227, 227,
+        )));
+    }
+    style.border.radius = iced::border::Radius::new(10.0);
+    style
 }

@@ -1,7 +1,7 @@
-use iced::widget::{self, button, text, Column};
 use iced::Element;
+use iced::widget::{self, Column, button, text};
 
-use super::super::{lang, style, utils, App};
+use super::super::{App, lang, utils};
 
 #[derive(Debug, Clone)]
 pub(in super::super) enum Message {
@@ -9,7 +9,7 @@ pub(in super::super) enum Message {
 }
 
 pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
-    let mut col = Column::new().align_items(iced::Alignment::Center);
+    let mut col = Column::new().align_x(iced::Alignment::Center);
 
     col = col.push(
         button(lang::set_target(&app.lang))
@@ -20,10 +20,19 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
                     Some(Message::ChangeTarget)
                 }
             })
-            .style(style::ButtonStyleSheet::new().set_background(
-                iced::Color::from_rgb8(232, 205, 64),
-                iced::Color::from_rgb8(242, 225, 84),
-            )),
+            .style(|theme, status| {
+                let mut style = widget::button::primary(theme, status);
+                if status == widget::button::Status::Active {
+                    style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+                        232, 205, 64,
+                    )))
+                } else {
+                    style.background = Some(iced::Background::Color(iced::Color::from_rgb8(
+                        242, 225, 84,
+                    )))
+                }
+                style
+            }),
     );
 
     if let Some(target) = match app.db.get_setting("target_path") {
@@ -45,22 +54,20 @@ pub(in super::super) fn view(app: &App) -> Element<'_, Message> {
     }
 
     widget::container(col)
-        .style(
-            style::ContainerStyleSheet::new()
-                .background(Some(iced::Background::Color(iced::Color::from_rgb8(
-                    254, 234, 54,
-                ))))
-                .border_radius(iced::Border::with_radius(20.0))
-                .shadow(iced::Shadow {
-                    color: iced::Color::from_rgb8(0, 0, 0),
-                    offset: iced::Vector::new(0.0, 0.0),
-                    blur_radius: 8.0,
-                }),
-        )
+        .style(|_| widget::container::Style {
+            background: Some(iced::Background::Color(iced::Color::from_rgb8(
+                254, 234, 54,
+            ))),
+            border: iced::Border::default().rounded(20.0),
+            shadow: iced::Shadow {
+                color: iced::Color::from_rgb8(0, 0, 0),
+                offset: iced::Vector::new(0.0, 0.0),
+                blur_radius: 8.0,
+            },
+            text_color: None,
+        })
         .padding(10)
-        .width(iced::Length::Fill)
-        .center_x()
-        .center_y()
+        .center(iced::Fill)
         .into()
 }
 

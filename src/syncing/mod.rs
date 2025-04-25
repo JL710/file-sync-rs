@@ -66,14 +66,17 @@ impl LastSync {
         &self.timestamp
     }
 
+    #[allow(unused)]
     pub fn sources(&self) -> Vec<PathBuf> {
         self.sources.iter().map(PathBuf::from).collect()
     }
 
+    #[allow(unused)]
     pub fn target(&self) -> &String {
         &self.target
     }
 
+    #[allow(unused)]
     pub fn version(&self) -> &String {
         &self.version
     }
