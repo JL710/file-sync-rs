@@ -28,9 +28,8 @@ pub fn write_last_sync(path: PathBuf, last_sync: &LastSync) -> Result<()> {
         anyhow::bail!("Path is invalid.");
     }
 
-    std::fs::File::open(&path)
-        .context("Could not open target dir")?
-        .set_modified(std::time::SystemTime::now())?;
+    filetime::set_file_times(&path, filetime::FileTime::now(), filetime::FileTime::now())
+        .context("could not update target dir access time")?;
 
     std::fs::write(
         path.join(LAST_SYNC_FILENAME),
